@@ -1,9 +1,11 @@
+//use ark_ec::hashing::field_hashers::DefaultFieldHasher;
 use rand::prelude::*;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 use thiserror::Error;
 use threshold_bls::{
-    group::{Element, PairingCurve, Point, Scalar},
+    group::{Element, PairingCurve, Point, Scalar as Sc},
+    poly::{Eval, Poly},
     sig::Share,
 };
 
@@ -18,6 +20,9 @@ pub enum POPRFError {
     #[error("not enough responses: {0}/{1}")]
     NotEnoughResponses(usize, usize),
 
+    #[error("could not recover from shares")]
+    RecoverError,
+
     #[error("could not inverse")]
     NoInverse,
 }
@@ -26,16 +31,16 @@ pub mod poprf {
     use super::*;
 
     pub trait POPRFScheme {
-        type Scalar: Scalar<RHS = Self::Scalar>;
+        type Scalar: Sc<RHS = Self::Scalar>;
 
         type G1: Point<RHS = Self::Scalar> + Serialize + DeserializeOwned;
 
         type G2: Point<RHS = Self::Scalar> + Serialize + DeserializeOwned;
 
-        type GT: Element;
+        type GT: Sc<RHS = Self::GT>;
 
         fn req(
-            v: &Self::G2, // remove?
+            v: &Self::G2,
             t: &[u8],     // non-secret domain tag
             msg: &[u8],
         ) -> Result<
@@ -159,9 +164,25 @@ pub mod poprf {
             let mut A = Self::GT::new();
             let mut B = Self::GT::new();
             shares.iter().map(|(Ai, Bi)| {
-                let lambda; // TODO: lambda_i(0)
-                A.add(Ai.mul(&lambda)); //ERROR:  mul() method not found in `&threshold_bls::sig::Share<<Self as POPRFScheme>::GT>`
-                B.add(Bi.mul(&lambda));
+                let valid_shares: Vec<Eval<Self::GT>> = shares
+                    .iter()
+                    .map(|(share, _)| {
+                        let eval: Eval<Vec<u8>> = bincode::deserialize(share)?;
+                        let val = bincode::deserialize(&eval.value)?;
+                        Ok(Eval {
+                            index: eval.index,
+                            value: val,
+                        })
+                    })
+                    .collect::<Result<_, POPRFError::RecoverError>>()?;
+                let lambda_0 = Poly::recover(threshold, valid_shares);
+                let mut A_tmp = Ai.private.clone();
+                let mut B_tmp = Bi.private.clone();
+                A_tmp.mul(&lambda_0);
+                B_tmp.mul(&lambda_0);
+
+                A.add(&A_tmp);
+                B.add(&B_tmp);
             });
 
             Ok((A, B))
@@ -217,7 +238,7 @@ where
         B: &Self::GT,
         t: &[u8],
         m: &[u8],
-        r: &Self::Scalar,
+        r: &Self::GT,
         c: &Self::Scalar,
         d: &Self::Scalar,
     ) -> Result<Self::GT, POPRFError> {
@@ -244,3 +265,32 @@ where
         Ok(y_A)
     }
 }
+
+
+// pub trait HashToField {
+//     const NUM_TRIES: u8 = 255;
+
+//     fn hash_to_field<T>(&self, domain: &[u8], message: &[u8]) -> Result<T, POPRFError> {
+//         let num_bytes = T::zero().serialized_size();
+//         let hash_loop_time = start_timer!(|| "try_and_increment::hash_loop");
+//         let hash_bytes = Self::hash_length(num_bytes);
+
+//         let mut counter = [0; 1];
+//         for c in 0..NUM_TRIES {
+//             (&mut counter[..]).write_u8(c as u8)?;
+//             let candidate_hash = self.hasher.hash( // TODO
+//                 domain,
+//                 &[&counter, extra_data, &message].concat(),
+//                 hash_bytes,
+//             )?;
+//         }
+
+//         Err(POPRFError::HashingError)
+//     }
+
+//     fn hash_length(n: usize) -> usize {
+//         let bits = (n * 8) as f64 / 256.0;
+//         let rounded_bits = bits.ceil() * 256.0;
+//         rounded_bits as usize / 8
+//     }
+// }

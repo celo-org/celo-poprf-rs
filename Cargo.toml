@@ -12,6 +12,6 @@ rand_core = { version = "0.6.3", default-features = false }
 rand = "0.8.5"
 serde = {version = "1.0.106", features = ["derive"] }
 
-threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks" }
+threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
 thiserror = "1.0.15"
 
