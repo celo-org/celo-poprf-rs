@@ -8,10 +8,19 @@ crate-type = ["lib"]
 
 [dependencies]
 bincode = "1.2.1"
+ark-bls12-377 = { version = "0.3.0" }
+ark-ec = { version = "0.3.0", features = [ "std", "parallel"] }
+ark-ff = { version = "0.3.0", features = [ "std", "parallel"] }
+ark-serialize = { version = "0.3.0", features = [ "derive" ] }
+ark-std = { version = "0.3.0" }
+bls-crypto = { git = "https://github.com/celo-org/bls-crypto" }
 rand_core = { version = "0.6.3", default-features = false }
+log = "0.4.14"
+hex = "0.4.3"
 rand = "0.8.5"
 serde = {version = "1.0.106", features = ["derive"] }
 
-threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
+#threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
+threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", rev = "aedddf63b2bb0605b54106d92a48df3796947122" }
 thiserror = "1.0.15"
 

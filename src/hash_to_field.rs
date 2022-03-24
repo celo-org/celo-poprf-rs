@@ -1,24 +1,40 @@
-use threshold_bls::group::Scalar;
+use ark_bls12_377;
+use ark_ec::PairingEngine;
+use ark_ff::fields::Field;
+use ark_std::{end_timer, start_timer};
+use bls_crypto::{
+    hash_to_curve::try_and_increment::TryAndIncrement, hashers::DirectHasher, HashToCurve,
+};
+use log::error;
+use log::trace;
+use thiserror::Error;
+use threshold_bls::group::{Element, Scalar as Sc};
 
+#[derive(Debug, Error)]
+pub enum HashError {
+    /// Error
+    #[error("hashing to field failed")]
+    HashToFieldError,
+}
+
+//TODO: Make this work with any curve, not just bls377
 pub trait HashToField {
     const NUM_TRIES: u8 = 255;
 
-    fn hash_to_field(&self, domain: &[u8], message: &[u8]) -> Result<Scalar, Error> {
-        //extra data?
-        let num_bytes = Scalar::zero().serialized_size(); //TODO: serialize
+    type Scalar: Sc<RHS = Self::Scalar>;
+
+    fn hash_to_field(&self, domain: &[u8], message: &[u8]) -> Result<Self::Scalar, HashError> {
+        let num_bytes = Self::Scalar::zero().serialized_size();
         let hash_loop_time = start_timer!(|| "try_and_increment::hash_loop");
         let hash_bytes = Self::hash_length(num_bytes);
 
         let mut counter = [0; 1];
-        for c in 0..NUM_TRIES {
+        for c in 0..Self::NUM_TRIES {
             (&mut counter[..]).write_u8(c as u8)?;
-            let candidate_hash = self.hasher.hash(
-                domain,
-                &[&counter, extra_data, &message].concat(),
-                hash_bytes,
-            )?;
+            let hasher = TryAndIncrement::new(&DirectHasher);
+            let candidate_hash = hasher.hash(domain, &[&counter, message].concat(), hash_bytes)?;
 
-            if let Some(p) = Scalar::from_be_bytes_mod_order(&candidate_hash[..num_bytes]) { // TODO: from_bytes
+            if let Some(p) = Self::Scalar::from_random_bytes(&candidate_hash[..num_bytes]) {
                 trace!(
                     "succeeded hashing \"{}\" to scalar field in {} tries",
                     hex::encode(message),
@@ -33,12 +49,9 @@ pub trait HashToField {
                 //
                 // return Ok((scaled, c as usize));
             }
-
-
-
         }
 
-        Err(Error::HashingError)
+        Err(HashError::HashToFieldError)
     }
 
     fn hash_length(n: usize) -> usize {
