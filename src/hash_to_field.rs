@@ -1,10 +1,9 @@
-use ark_bls12_377;
-use ark_ec::PairingEngine;
+// use ark_bls12_377;
+// use ark_ec::PairingEngine;
 use ark_ff::fields::Field;
 use ark_std::{end_timer, start_timer};
-use bls_crypto::{
-    hash_to_curve::try_and_increment::TryAndIncrement, hashers::DirectHasher, HashToCurve,
-};
+use bls_crypto::hashers::COMPOSITE_HASHER;
+use byteorder::WriteBytesExt;
 use log::error;
 use log::trace;
 use thiserror::Error;
@@ -31,7 +30,7 @@ pub trait HashToField {
         let mut counter = [0; 1];
         for c in 0..Self::NUM_TRIES {
             (&mut counter[..]).write_u8(c as u8)?;
-            let hasher = TryAndIncrement::new(&DirectHasher);
+            let hasher = &*COMPOSITE_HASHER;
             let candidate_hash = hasher.hash(domain, &[&counter, message].concat(), hash_bytes)?;
 
             if let Some(p) = Self::Scalar::from_random_bytes(&candidate_hash[..num_bytes]) {
@@ -42,12 +41,12 @@ pub trait HashToField {
                 );
                 end_timer!(hash_loop_time);
 
-                // let scaled = p.scale_by_cofactor();
+                // let scaled = p.scale_by_cofactor(); // TODO
                 // if scaled.is_zero() {
                 //     continue;
                 // }
-                //
-                // return Ok((scaled, c as usize));
+
+                return Ok((scaled, c as usize));
             }
         }
 
