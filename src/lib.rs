@@ -14,7 +14,7 @@ pub enum POPRFError {
     NotEnoughResponses(usize, usize),
 
     #[error("could not recover from shares")]
-    RecoverError,
+    RecoverError(#[from] threshold_bls::poly::PolyError),
 
     #[error("could not inverse")]
     NoInverse,

@@ -76,15 +76,15 @@ pub mod poprf {
             v.add(&a);
 
             // Concatenate (g2 || v || a || b)
-            let g2_ser = bincode::serialize(&g2)?;//.map_err(|_| POPRFError::SerializationError)?;
-            let v_ser = bincode::serialize(&v)?;//.map_err(|_| POPRFError::SerializationError)?;
-            let a_ser = bincode::serialize(&a)?;//.map_err(|_| POPRFError::SerializationError)?;
-            let b_ser = bincode::serialize(&b)?;//.map_err(|_| POPRFError::SerializationError)?;
+            let g2_ser = bincode::serialize(&g2)?;
+            let v_ser = bincode::serialize(&v)?;
+            let a_ser = bincode::serialize(&a)?;
+            let b_ser = bincode::serialize(&b)?;
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
             let mut z = Self::Scalar::new();
-            z.map(&concatenate)?;//.map_err(|_| POPRFError::HashingError)?;
+            //z.map(&concatenate)?;
 
             // s1 = v1 - y * z
             let mut s1 = v1;
@@ -116,10 +116,10 @@ pub mod poprf {
             v.add(&b);
 
             // Concatenate (g2 || v || a || b)
-            let g2_ser = bincode::serialize(&g2)?;//.map_err(|_| POPRFError::SerializationError)?;
-            let v_ser = bincode::serialize(&v)?;//.map_err(|_| POPRFError::SerializationError)?;
-            let a_ser = bincode::serialize(&a)?;//.map_err(|_| POPRFError::SerializationError)?;
-            let b_ser = bincode::serialize(&b)?;//.map_err(|_| POPRFError::SerializationError)?;
+            let g2_ser = bincode::serialize(&g2)?;
+            let v_ser = bincode::serialize(&v)?;
+            let a_ser = bincode::serialize(&a)?;
+            let b_ser = bincode::serialize(&b)?;
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
@@ -142,31 +142,29 @@ pub mod poprf {
             if threshold > shares.len() {
                 return Err(POPRFError::NotEnoughResponses(shares.len(), threshold));
             }
+            let (A_vec, B_vec) : (Vec<Share<Self::GT>>, Vec<Share<Self::GT>>) = shares.into_iter().cloned().unzip();
 
-            let valid_shares: Vec<Eval<Self::GT>> = shares
+            let A_valid_shares: Vec<Eval<Self::GT>> = A_vec
                 .iter()
-                .map(|(share, _)| {
-                    let eval: Eval<Vec<u8>> = bincode::deserialize(share)?;
-                    let val = bincode::deserialize(&eval.value)?;
+                .map(|share| {
                     Ok(Eval {
-                        index: eval.index,
-                        value: val,
+                        index: share.index,
+                        value: share.private,
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
-            let lambda_0 = Poly::recover(threshold, valid_shares)?;
+            let A = Poly::recover(threshold, A_valid_shares)?;
 
-            let mut A = Self::GT::new();
-            let mut B = Self::GT::new();
-            shares.iter().map(|(Ai, Bi)| {
-                let mut A_tmp = Ai.private.clone();
-                let mut B_tmp = Bi.private.clone();
-                A_tmp.mul(&lambda_0);
-                B_tmp.mul(&lambda_0);
-
-                A.add(&A_tmp);
-                B.add(&B_tmp);
-            });
+            let B_valid_shares: Vec<Eval<Self::GT>> = B_vec
+                .iter()
+                .map(|share| {
+                    Ok(Eval {
+                        index: share.index,
+                        value: share.private,
+                    })
+                })
+                .collect::<Result<_, POPRFError>>()?;
+            let B = Poly::recover(threshold, B_valid_shares)?;
 
             Ok((A, B))
         }
@@ -189,6 +187,7 @@ pub struct G2Scheme<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
+//TODO: Just paramaterize POPRFScheme by Pairing Curve?
 impl<C> poprf::POPRFScheme for G2Scheme<C>
 where
     C: PairingCurve,
