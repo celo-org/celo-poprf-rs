@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [lib]
-crate-type = ["lib"]
+crate-type = ["lib", "cdylib", "staticlib"]
+name = "poprf"
 
 [dependencies]
 bincode = "1.2.1"
