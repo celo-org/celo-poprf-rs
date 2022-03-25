@@ -1,6 +1,8 @@
+pub mod api;
+pub mod ffi
+
 mod poprf;
 mod hash_to_field;
-pub mod api;
 mod prf;
 mod poprfscheme;
 use thiserror::Error;

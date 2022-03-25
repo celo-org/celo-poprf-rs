@@ -4,7 +4,6 @@ use std::{error::Error, fmt::Debug};
 use threshold_bls::{
     group::{Element, Scalar},
     poly::Poly,
-    sig::{Share},
 };
 use crate::poprf::poprf::POPRF;
 use crate::api::POPRFScheme;
