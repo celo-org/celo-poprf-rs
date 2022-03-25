@@ -1,5 +1,6 @@
 pub mod poprf;
 mod hash_to_field;
+mod traits;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

@@ -1,4 +1,4 @@
-// use ark_bls12_377;
+/*// use ark_bls12_377;
 // use ark_ec::PairingEngine;
 use ark_ff::fields::Field;
 use ark_std::{end_timer, start_timer};
@@ -58,4 +58,4 @@ pub trait HashToField {
         let rounded_bits = bits.ceil() * 256.0;
         rounded_bits as usize / 8
     }
-}
+}*/

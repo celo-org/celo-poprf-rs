@@ -12,7 +12,7 @@ use crate::POPRFError;
 pub mod poprf {
     use super::*;
 
-    pub trait POPRFScheme {
+    pub trait POPRFInterface {
         type Scalar: Sc<RHS = Self::Scalar>;
 
         type G1: Point<RHS = Self::Scalar> + Serialize + DeserializeOwned;
@@ -22,13 +22,9 @@ pub mod poprf {
         type GT: Element<RHS = Self::Scalar> + Serialize + DeserializeOwned;
 
         fn req(
-            v: &Self::G2,
-            t: &[u8],     // non-secret domain tag
             msg: &[u8],
         ) -> Result<
             (
-                Vec<u8>,
-                Vec<u8>,
                 Self::Scalar,
                 Self::Scalar,
                 Self::Scalar,
@@ -54,7 +50,7 @@ pub mod poprf {
             g2.mul(&d);
             b.add(&g2); // b = h^c * g2^d
 
-            Ok((t.into(), msg.into(), r, c, d, a, h))
+            Ok((r, c, d, a, b))
         }
 
         // Prove(a, b, c/r, d)
@@ -129,10 +125,10 @@ pub mod poprf {
         }
 
         fn blind_ev(
-            k: Self::Scalar,
+            k: &Self::Scalar,
             t: &[u8],
-            a: Self::G2,
-            b: Self::G2,
+            a: &Self::G2,
+            b: &Self::G2,
         ) -> Result<(Self::GT, Self::GT), POPRFError>;
 
         #[allow(non_snake_case)]
@@ -184,13 +180,13 @@ pub mod poprf {
     }
 }
 
+// G2Interface implements public keys over G2
 #[derive(Clone, Debug)]
-pub struct G2Scheme<C: PairingCurve> {
+pub struct G2Interface<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
-//TODO: Just paramaterize POPRFScheme by PairingCurve?
-impl<C> poprf::POPRFScheme for G2Scheme<C>
+impl<C> poprf::POPRFInterface for G2Interface<C>
 where
     C: PairingCurve,
 {
@@ -201,18 +197,18 @@ where
 
     #[allow(non_snake_case)]
     fn blind_ev(
-        k: Self::Scalar,
+        k: &Self::Scalar,
         t: &[u8],
-        a: Self::G2,
-        b: Self::G2,
+        a: &Self::G2,
+        b: &Self::G2,
     ) -> Result<(Self::GT, Self::GT), POPRFError> {
         let mut h = Self::G1::new();
         h.map(t).map_err(|_| POPRFError::HashingError)?;
-        h.mul(&k);
+        h.mul(k);
         // A <- e(H1(t)^k, a)
-        let A = C::pair(&h, &a);
+        let A = C::pair(&h, a);
         // B <- e(H1(t)^k, b)
-        let B = C::pair(&h, &b);
+        let B = C::pair(&h, b);
 
         Ok((A, B)) // rep <- (A, B)
     }
@@ -223,7 +219,6 @@ where
         A: &Self::GT,
         B: &Self::GT,
         t: &[u8],
-        m: &[u8],
         r: &Self::Scalar,
         c: &Self::Scalar,
         d: &Self::Scalar,
@@ -231,7 +226,7 @@ where
         // y_A = A^(r^(-1))
         let r_inv = r.inverse().ok_or(POPRFError::NoInverse)?;
         let mut y_A = A.clone();
-        y_A.mul(&r_inv); //TYPE ERROR
+        y_A.mul(&r_inv); 
 
         let mut h = Self::G1::new();
         h.map(t).map_err(|_| POPRFError::HashingError)?;
