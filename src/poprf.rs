@@ -1,5 +1,5 @@
 //use ark_ec::hashing::field_hashers::DefaultFieldHasher;
-use rand::prelude::*;
+//use rand::prelude::*;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
@@ -50,7 +50,7 @@ pub mod poprf {
 
             h.mul(&c);
             let mut g2 = Self::G2::one();
-            let mut b = h;
+            let mut b = h.clone();
             g2.mul(&d);
             b.add(&g2); // b = h^c * g2^d
 
@@ -107,7 +107,7 @@ pub mod poprf {
             s2: &Self::Scalar,
         ) -> Result<bool, POPRFError> {
             // v = g2^s1 * a^s2 * b^z
-            let g2 = Self::G2::one();
+            let mut g2 = Self::G2::one();
             g2.mul(&s1);
             a.mul(&s2);
             b.mul(&z);
@@ -123,9 +123,9 @@ pub mod poprf {
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
-            let h: &Self::Scalar;
+            let h = Self::Scalar::new();
 
-            Ok(z == h)
+            Ok(*z == h)
         }
 
         fn blind_ev(
@@ -135,6 +135,7 @@ pub mod poprf {
             b: Self::G2,
         ) -> Result<(Self::GT, Self::GT), POPRFError>;
 
+        #[allow(non_snake_case)]
         fn aggregate(
             threshold: usize,
             shares: &[(Share<Self::GT>, Share<Self::GT>)],
@@ -149,7 +150,7 @@ pub mod poprf {
                 .map(|share| {
                     Ok(Eval {
                         index: share.index,
-                        value: share.private,
+                        value: share.private.clone(),
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
@@ -160,7 +161,7 @@ pub mod poprf {
                 .map(|share| {
                     Ok(Eval {
                         index: share.index,
-                        value: share.private,
+                        value: share.private.clone(),
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
@@ -169,6 +170,7 @@ pub mod poprf {
             Ok((A, B))
         }
 
+        #[allow(non_snake_case)]
         fn finalize(
             v: &Self::G2,
             A: &Self::GT,
@@ -187,7 +189,7 @@ pub struct G2Scheme<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
-//TODO: Just paramaterize POPRFScheme by Pairing Curve?
+//TODO: Just paramaterize POPRFScheme by PairingCurve?
 impl<C> poprf::POPRFScheme for G2Scheme<C>
 where
     C: PairingCurve,
@@ -197,6 +199,7 @@ where
     type G2 = C::G2;
     type GT = C::GT;
 
+    #[allow(non_snake_case)]
     fn blind_ev(
         k: Self::Scalar,
         t: &[u8],
@@ -204,7 +207,7 @@ where
         b: Self::G2,
     ) -> Result<(Self::GT, Self::GT), POPRFError> {
         let mut h = Self::G1::new();
-        h.map(t).map_err(|_| POPRFError::HashingError);
+        h.map(t).map_err(|_| POPRFError::HashingError)?;
         h.mul(&k);
         // A <- e(H1(t)^k, a)
         let A = C::pair(&h, &a);
@@ -214,6 +217,7 @@ where
         Ok((A, B)) // rep <- (A, B)
     }
 
+    #[allow(non_snake_case)]
     fn finalize(
         v: &Self::G2,
         A: &Self::GT,
@@ -230,7 +234,7 @@ where
         y_A.mul(&r_inv); //TYPE ERROR
 
         let mut h = Self::G1::new();
-        h.map(t).map_err(|_| POPRFError::HashingError);
+        h.map(t).map_err(|_| POPRFError::HashingError)?;
         // y_B <- B^(c^(-1)) e(H1(t), v^(-dc^(-1)))
         let c_inv = c.inverse().ok_or(POPRFError::NoInverse)?;
         let mut vdc = v.clone();
