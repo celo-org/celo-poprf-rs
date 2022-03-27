@@ -14,6 +14,7 @@ use crate::POPRFError;
 ///
 /// The Scheme trait is necessary to implement for "simple" tagged PRF scheme as well for threshold
 /// based POPRF scheme.
+// TODO: Make keypair a function in POPRFInterface, add keygen APIs to PRFScheme and POPRFScheme
 /*pub trait Scheme: Debug {
     /// `Private` represents the field over which private keys are represented.
     type Private: Scalar<RHS = Self::Private>;
@@ -44,6 +45,9 @@ where
 }*/
 
 pub trait PRFScheme: Scheme {
+    /// `Private` represents the field over which private keys are represented.
+    type Private;
+
     type Error: Error;
 
     /// Evaluates the PRF on the given plaintext tag and message input.
@@ -58,8 +62,6 @@ pub trait POPRFScheme {
     /// `Public` represents the group over which the public keys are
     /// represented.
     type Public;
-    /// `Evaluation` represents the group over which the evaluations are reresented.
-    type Evaluation;
 
     type Error: Error;
 
@@ -139,7 +141,7 @@ where
 
 }
 
-pub trait ThresholdScheme: Scheme {
+pub trait ThresholdScheme: POPRFScheme {
     /// Error produced when partially signing, aggregating or verifying
     type Error: Error;
 
@@ -161,7 +163,7 @@ pub trait ThresholdScheme: Scheme {
     fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error>;
 }
 
-pub trait BlindThresholdScheme: POPRFScheme + ThresholdScheme {
+pub trait BlindThresholdScheme: ThresholdScheme {
     /// `Private` represents the field over which private keys are represented.
     type Private;
 

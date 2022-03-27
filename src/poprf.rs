@@ -131,6 +131,7 @@ pub mod poprf {
             b: &Self::G2,
         ) -> Result<(Self::GT, Self::GT), POPRFError>;
 
+        // TODO: Separate out aggregate into its own trait
         #[allow(non_snake_case)]
         fn aggregate(
             threshold: usize,
