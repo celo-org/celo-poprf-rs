@@ -110,6 +110,7 @@ where
         msg: &Self::BlindMsg,
     ) -> Result<Self::BlindResp, Self::Error> {
         let (z,s_1,s_2,a,b) = msg;
+        // TODO: Throw error if bool false
         let bool = C::verify(&mut a.clone(), &mut b.clone(), &z, &s_1, &s_2)?;
         let (A,B) = C::blind_ev(private, tag, a, b)?;
         Ok((A,B))
@@ -150,7 +151,7 @@ pub trait ThresholdScheme: POPRFScheme {
     fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>;
 }
 
-/*pub trait BlindThresholdScheme: ThresholdScheme {
+pub trait BlindThresholdScheme: ThresholdScheme {
     /// Error produced when partially signing, aggregating or verifying
     type Error: Error;
 
@@ -179,19 +180,17 @@ impl<C> BlindThresholdScheme for C
 where
     C: POPRFInterface + ThresholdScheme + Debug,
 {
-    type Error = POPRFError;
+    type Error = <C as POPRFScheme>::Error;
 
-    type BlindPartialResp = Share<(C::Evaluation, C::Evaluation)>;
+    type BlindPartialResp = Share<C::BlindResp>;//Share<(C::Evaluation, C::Evaluation)>;
 
     fn blind_partial_eval(
         private: &Share<Self::Private>,
         tag: &[u8],
         msg: &Self::BlindMsg,
     ) -> Result<Self::BlindPartialResp, <Self as BlindThresholdScheme>::Error> {
-        let (z,s_1,s_2,a,b) = msg;
-        let bool = C::verify(&mut a.clone(), &mut b.clone(), &z, &s_1, &s_2)?;
-        let (A,B) = C::blind_ev(&private.private, tag, a, b)?;
-        Ok((A,B, private.index))
+        let resp = C::blind_eval(&private.private, tag, msg)?;
+        Ok(Share{ index: private.index, private: resp })
     }
 
     fn unblind_partial_resp(
@@ -211,4 +210,4 @@ where
         partials: &[Self::BlindPartialResp],
     ) -> Result<Self::BlindResp, <Self as BlindThresholdScheme>::Error> {
     }
-}*/
+}
