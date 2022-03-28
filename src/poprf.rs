@@ -3,49 +3,65 @@
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
-    group::{Element, PairingCurve, Point, Scalar as Sc},
+    group::{Element, PairingCurve, Point, Scalar},
     poly::{Eval, Poly},
     sig::Share,
 };
 use crate::POPRFError;
 
+/// The `Scheme` trait contains the basic information of the groups over which the PRF operations
+/// takes places and a way to create a valid key pair.
+///
+/// The Scheme trait is necessary to implement for "simple" tagged PRF scheme as well for threshold
+/// based POPRF scheme.
+pub trait Scheme: Debug {
+    /// `Private` represents the field over which private keys are represented.
+    type Private: Scalar<RHS = Self::Private>;
+    /// `Public` represents the group over which the public keys are
+    /// represented.
+    type Public: Point<RHS = Self::Private> + Serialize + DeserializeOwned;
+    /// `Evaluation` represents the group over which the evaluations are reresented.
+    type Evaluation: Element<RHS = Self::Private> + Serialize + DeserializeOwned;
+
+    // Returns a new fresh keypair usable by the scheme.
+    /*fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {
+        let private = Self::Private::rand(rng);
+
+        let mut public = Self::Public::one();
+        public.mul(&private);
+
+        (private, public)
+    }*/
+}
+
 pub mod poprf {
-    use super::*;
-
-    pub trait POPRFInterface {
-        type Scalar: Sc<RHS = Self::Scalar>;
-
-        type G1: Point<RHS = Self::Scalar> + Serialize + DeserializeOwned;
-
-        type G2: Point<RHS = Self::Scalar> + Serialize + DeserializeOwned;
-
-        type GT: Element<RHS = Self::Scalar> + Serialize + DeserializeOwned;
-
+use super::*;
+    pub trait POPRFInterface : Scheme {
         fn req(
             msg: &[u8],
         ) -> Result<
             (
-                Self::Scalar,
-                Self::Scalar,
-                Self::Scalar,
-                Self::G2,
-                Self::G2,
+                Self::Private,
+                Self::Private,
+                Self::Private,
+                Self::Public,
+                Self::Public,
             ),
             POPRFError,
         > {
             let rng = &mut rand::thread_rng();
-            let r = Self::Scalar::rand(rng); // TODO: move to preprocessing?
-            let c = Self::Scalar::rand(rng);
-            let d = Self::Scalar::rand(rng);
+            let r = Self::Private::rand(rng); // TODO: move to preprocessing?
+            let c = Self::Private::rand(rng);
+            let d = Self::Private::rand(rng);
 
-            let mut h = Self::G2::one();
+            let mut h = Self::Public::one();
             h.map(msg).map_err(|_| POPRFError::HashingError)?;
 
             let mut a = h.clone();
             a.mul(&r); // a = h^r
 
             h.mul(&c);
-            let mut g2 = Self::G2::one();
+            let mut g2 = Self::Public::one();
             let mut b = h.clone();
             g2.mul(&d);
             b.add(&g2); // b = h^c * g2^d
@@ -55,17 +71,17 @@ pub mod poprf {
 
         // Prove(a, b, c/r, d)
         fn prove(
-            a: &mut Self::G2,
-            b: &Self::G2,
-            x: &mut Self::Scalar,
-            y: &mut Self::Scalar,
-        ) -> Result<(Self::Scalar, Self::Scalar, Self::Scalar), POPRFError> {
+            a: &mut Self::Public,//&mut Self::G2,
+            b: &Self::Public,//&Self::G2,
+            x: &mut Self::Private,//&mut Self::Scalar,
+            y: &mut Self::Private,//&mut Self::Scalar,
+        ) -> Result<(Self::Private, Self::Private, Self::Private), POPRFError> {
             let rng = &mut rand::thread_rng();
-            let v1 = Self::Scalar::rand(rng);
-            let v2 = Self::Scalar::rand(rng);
+            let v1 = Self::Private::rand(rng);
+            let v2 = Self::Private::rand(rng);
 
             // v = g2^v1 * a^v2
-            let mut g2 = Self::G2::one();
+            let mut g2 = Self::Public::one();
             g2.mul(&v1);
             a.mul(&v2);
             let mut v = g2.clone();
@@ -79,7 +95,7 @@ pub mod poprf {
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
-            let mut z = Self::Scalar::new();
+            let mut z = Self::Private::new();
             //z.map(&concatenate)?;
 
             // s1 = v1 - y * z
@@ -96,14 +112,14 @@ pub mod poprf {
         }
 
         fn verify(
-            a: &mut Self::G2,
-            b: &mut Self::G2,
-            z: &Self::Scalar,
-            s1: &Self::Scalar,
-            s2: &Self::Scalar,
+            a: &mut Self::Public,//&mut Self::G2,
+            b: &mut Self::Public,//&mut Self::G2,
+            z: &Self::Private,//&Self::Scalar,
+            s1: &Self::Private,//&Self::Scalar,
+            s2: &Self::Private,//&Self::Scalar,
         ) -> Result<bool, POPRFError> {
             // v = g2^s1 * a^s2 * b^z
-            let mut g2 = Self::G2::one();
+            let mut g2 = Self::Public::one();
             g2.mul(&s1);
             a.mul(&s2);
             b.mul(&z);
@@ -119,46 +135,45 @@ pub mod poprf {
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
-            let h = Self::Scalar::new();
+            let h = Self::Private::new();
 
             Ok(*z == h)
         }
 
         fn blind_ev(
-            k: &Self::Scalar,
+            k: &Self::Private,
             t: &[u8],
-            a: &Self::G2,
-            b: &Self::G2,
-        ) -> Result<(Self::GT, Self::GT), POPRFError>;
+            a: &Self::Public,
+            b: &Self::Public,
+        ) -> Result<(Self::Evaluation, Self::Evaluation), POPRFError>;
 
         // TODO: Separate out aggregate into its own trait
         #[allow(non_snake_case)]
         fn aggregate(
             threshold: usize,
-            shares: &[(Share<Self::GT>, Share<Self::GT>)],
-        ) -> Result<(Self::GT, Self::GT), POPRFError> {
+            shares: &[Share<(Self::Evaluation, Self::Evaluation)>],
+        ) -> Result<(Self::Evaluation, Self::Evaluation), POPRFError> {
             if threshold > shares.len() {
                 return Err(POPRFError::NotEnoughResponses(shares.len(), threshold));
             }
-            let (A_vec, B_vec) : (Vec<Share<Self::GT>>, Vec<Share<Self::GT>>) = shares.into_iter().cloned().unzip();
 
-            let A_valid_shares: Vec<Eval<Self::GT>> = A_vec
+            let A_valid_shares: Vec<Eval<Self::Evaluation>> = shares
                 .iter()
                 .map(|share| {
                     Ok(Eval {
                         index: share.index,
-                        value: share.private.clone(),
+                        value: share.private.0.clone(),
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
             let A = Poly::recover(threshold, A_valid_shares)?;
 
-            let B_valid_shares: Vec<Eval<Self::GT>> = B_vec
+            let B_valid_shares: Vec<Eval<Self::Evaluation>> = shares
                 .iter()
                 .map(|share| {
                     Ok(Eval {
                         index: share.index,
-                        value: share.private.clone(),
+                        value: share.private.1.clone(),
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
@@ -169,41 +184,42 @@ pub mod poprf {
 
         #[allow(non_snake_case)]
         fn finalize(
-            v: &Self::G2,
-            A: &Self::GT,
-            B: &Self::GT,
+            v: &Self::Public,
+            A: &Self::Evaluation,
+            B: &Self::Evaluation,
             t: &[u8],
-            m: &[u8],
-            r: &Self::Scalar,
-            c: &Self::Scalar,
-            d: &Self::Scalar,
-        ) -> Result<Self::GT, POPRFError>;
+            r: &Self::Private,
+            c: &Self::Private,
+            d: &Self::Private,
+        ) -> Result<Self::Evaluation, POPRFError>;
     }
 }
 
-// G2Interface implements public keys over G2
+// G2Interface implements pairings with public keys over G2
 #[derive(Clone, Debug)]
 pub struct G2Interface<C: PairingCurve> {
     m: PhantomData<C>,
+}
+
+impl<C: PairingCurve> Scheme for G2Interface<C>
+{
+    type Private = C::Scalar; 
+    type Public = C::G2; 
+    type Evaluation = C::GT; 
 }
 
 impl<C> poprf::POPRFInterface for G2Interface<C>
 where
     C: PairingCurve,
 {
-    type Scalar = C::Scalar;
-    type G1 = C::G1;
-    type G2 = C::G2;
-    type GT = C::GT;
-
     #[allow(non_snake_case)]
     fn blind_ev(
-        k: &Self::Scalar,
+        k: &Self::Private,
         t: &[u8],
-        a: &Self::G2,
-        b: &Self::G2,
-    ) -> Result<(Self::GT, Self::GT), POPRFError> {
-        let mut h = Self::G1::new();
+        a: &Self::Public,
+        b: &Self::Public,
+    ) -> Result<(Self::Evaluation, Self::Evaluation), POPRFError> {
+        let mut h = C::G1::new();
         h.map(t).map_err(|_| POPRFError::HashingError)?;
         h.mul(k);
         // A <- e(H1(t)^k, a)
@@ -216,20 +232,20 @@ where
 
     #[allow(non_snake_case)]
     fn finalize(
-        v: &Self::G2,
-        A: &Self::GT,
-        B: &Self::GT,
+        v: &Self::Public,
+        A: &Self::Evaluation,
+        B: &Self::Evaluation,
         t: &[u8],
-        r: &Self::Scalar,
-        c: &Self::Scalar,
-        d: &Self::Scalar,
-    ) -> Result<Self::GT, POPRFError> {
+        r: &Self::Private,
+        c: &Self::Private,
+        d: &Self::Private,
+    ) -> Result<Self::Evaluation, POPRFError> {
         // y_A = A^(r^(-1))
         let r_inv = r.inverse().ok_or(POPRFError::NoInverse)?;
         let mut y_A = A.clone();
         y_A.mul(&r_inv); 
 
-        let mut h = Self::G1::new();
+        let mut h = C::G1::new();
         h.map(t).map_err(|_| POPRFError::HashingError)?;
         // y_B <- B^(c^(-1)) e(H1(t), v^(-dc^(-1)))
         let c_inv = c.inverse().ok_or(POPRFError::NoInverse)?;
