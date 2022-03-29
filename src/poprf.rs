@@ -148,7 +148,7 @@ use super::*;
         ) -> Result<(Self::Evaluation, Self::Evaluation), POPRFError>;
 
         // TODO: Separate out aggregate into its own trait
-        #[allow(non_snake_case)]
+        /*#[allow(non_snake_case)]
         fn aggregate(
             threshold: usize,
             shares: &[Share<(Self::Evaluation, Self::Evaluation)>],
@@ -180,6 +180,38 @@ use super::*;
             let B = Poly::recover(threshold, B_valid_shares)?;
 
             Ok((A, B))
+        }*/
+
+        // TODO: Separate out aggregate into its own trait
+        #[allow(non_snake_case)]
+        fn aggregate(
+            threshold: usize,
+            shares: &[Share<Self::Evaluation>],
+        ) -> Result<Self::Evaluation, POPRFError> {
+            if threshold > shares.len() {
+                return Err(POPRFError::NotEnoughResponses(shares.len(), threshold));
+            }
+
+            let valid_shares: Vec<Eval<Self::Evaluation>> = shares
+                .iter()
+                .map(|share| {
+                    Ok(Eval {
+                        index: share.index,
+                        value: share.private.clone(),
+                    })
+                })
+                .collect::<Result<_, POPRFError>>()?;
+            let res = Poly::recover(threshold, A_valid_shares)?;
+
+            Ok(res)
+        }
+
+        #[allow(non_snake_case)]
+        fn blind_aggregate(
+            threshold: usize,
+            shares: &[Share<Self::Evaluation, Self::Evaluation>],
+        ) -> Result<(Self::Evaluation,Self::Evaluation), POPRFError> {
+
         }
 
         #[allow(non_snake_case)]
