@@ -144,7 +144,7 @@ use super::*;
         fn eval(
             k: &Self::Private,
             t: &[u8],
-            a: &Self::Public,
+            a: &[u8],
         ) -> Result<Self::Evaluation, POPRFError>;
 
         fn blind_ev(
@@ -210,13 +210,15 @@ where
     fn eval(
         k: &Self::Private,
         t: &[u8],
-        a: &Self::Public,
+        m: &[u8],
     ) -> Result<Self::Evaluation, POPRFError> {
-        let mut h = C::G1::new();
-        h.map(t).map_err(|_| POPRFError::HashingError)?;
-        h.mul(k);
-        // A <- e(H1(t)^k, a)
-        let A = C::pair(&h, a);
+        let mut h1 = C::G1::new();
+        let mut h2 = C::G2::new();
+        h1.map(t).map_err(|_| POPRFError::HashingError)?;
+        h1.mul(k);
+        h2.map(m).map_err(|_| POPRFError::HashingError)?;
+        // A <- e(H1(t)^k, H2(m))
+        let A = C::pair(&h1, &h2);
 
         Ok(A)
     }

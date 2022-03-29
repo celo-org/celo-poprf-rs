@@ -59,11 +59,11 @@ pub trait POPRFScheme: Scheme {
     ) -> Result<Vec<u8>, Self::Error>; 
 
     /// Partially signs a message with a share of the private key.
-    /*fn partial_eval(
+    fn partial_eval(
         private: &Share<Self::Private>,
         tag: &[u8],
         msg: &[u8],
-    ) -> Result<Self::PartialResp, Self::Error>;*/
+    ) -> Result<Self::PartialResp, Self::Error>;
 
     /// Aggregates all partials signature together. Note that this method does
     /// not verify if the partial signatures are correct or not; it only
@@ -176,13 +176,14 @@ where
         Ok((A,B))
     }
 
-    /*fn partial_eval(
+    fn partial_eval(
         private: &Share<Self::Private>,
         tag: &[u8],
         msg: &[u8],
     ) -> Result<Self::PartialResp, Self::Error> {
-        
-    }*/
+        let res = C::eval(&private.private, tag, msg)?;
+        Ok(Share { private: res, index: private.index })
+    }
 
     fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error> {
         let vec = partials.into_iter().map(|p|  Share { private: p.private.clone(), index: p.index }).collect::<Vec<Share<C::Evaluation>>>();
