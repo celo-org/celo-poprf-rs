@@ -1,13 +1,13 @@
-/*// use ark_bls12_377;
+// use ark_bls12_377;
 // use ark_ec::PairingEngine;
 use ark_ff::fields::Field;
 use ark_std::{end_timer, start_timer};
-use bls_crypto::hashers::COMPOSITE_HASHER;
+use bls_crypto::{hashers::COMPOSITE_HASHER, Hasher};
 use byteorder::WriteBytesExt;
 use log::error;
 use log::trace;
 use thiserror::Error;
-use threshold_bls::group::{Element, Scalar as Sc};
+use threshold_bls::group::{Element, Scalar};
 
 #[derive(Debug, Error)]
 pub enum HashError {
@@ -20,7 +20,7 @@ pub enum HashError {
 pub trait HashToField {
     const NUM_TRIES: u8 = 255;
 
-    type Scalar: Sc<RHS = Self::Scalar>;
+    type Scalar: Scalar<RHS = Self::Scalar>;
 
     fn hash_to_field(&self, domain: &[u8], message: &[u8]) -> Result<Self::Scalar, HashError> {
         let num_bytes = Self::Scalar::zero().serialized_size();
@@ -58,4 +58,4 @@ pub trait HashToField {
         let rounded_bits = bits.ceil() * 256.0;
         rounded_bits as usize / 8
     }
-}*/
+}
