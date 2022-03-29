@@ -30,7 +30,11 @@ pub trait HashToField {
 
     type Scalar: Scalar<RHS = Self::Scalar>;
 
-    fn hash_to_field(&self, domain: &[u8], message: &[u8]) -> Result<(Self::Scalar, usize), HashError> {
+    fn hash_to_field(
+        &self,
+        domain: &[u8],
+        message: &[u8],
+    ) -> Result<(Self::Scalar, usize), HashError> {
         let num_bytes = Self::Scalar::zero().serialized_size();
         let hash_loop_time = start_timer!(|| "try_and_increment::hash_loop");
         let hash_bytes = Self::hash_length(num_bytes);
