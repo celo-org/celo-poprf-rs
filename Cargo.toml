@@ -8,6 +8,7 @@ crate-type = ["lib"]
 
 [dependencies]
 bincode = "1.2.1"
+byteorder = "1.4.3"
 ark-bls12-377 = { version = "0.3.0" }
 ark-ec = { version = "0.3.0", features = [ "std", "parallel"] }
 ark-ff = { version = "0.3.0", features = [ "std", "parallel"] }
