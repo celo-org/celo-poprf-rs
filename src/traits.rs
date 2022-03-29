@@ -58,10 +58,6 @@ pub trait POPRFScheme: Scheme {
     ) -> Result<Vec<u8>, Self::Error>; 
 }
 
-A-->B:A-->C:B
-|   |    |
-iA  iB   iC
-
 impl<C> POPRFScheme for C
 where
     C : POPRFInterface + Debug,
