@@ -31,6 +31,7 @@ pub trait POPRFScheme: Scheme {
     /// The blinded response type which results from an eval on a blinded message and plaintext tag.
     type BlindResp: Serialize + DeserializeOwned;
 
+    /// The unblinded response type which results from unblinding a blinded response
     type Resp;
 
     //fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> (Self::Token, Self::BlindMsg);
@@ -56,6 +57,10 @@ pub trait POPRFScheme: Scheme {
         resp: &Self::BlindResp,
     ) -> Result<Vec<u8>, Self::Error>; 
 }
+
+A-->B:A-->C:B
+|   |    |
+iA  iB   iC
 
 impl<C> POPRFScheme for C
 where
@@ -134,7 +139,11 @@ pub trait ThresholdScheme: POPRFScheme {
     /// Aggregates all partials signature together. Note that this method does
     /// not verify if the partial signatures are correct or not; it only
     /// aggregates them.
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>;
+    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Self::Resp, <Self as ThresholdScheme>::Error>;
+
+    /// Aggregates all partial signatures together and hashes the result. Does not verify partial
+    /// signatures.
+    fn aggregate_and_hash(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>;
 
     // TODO: Handle this with traits
     fn resp_to_partial_resp(resp: Self::Resp, i: Idx) -> Self::PartialResp;
