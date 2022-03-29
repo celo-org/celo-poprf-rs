@@ -3,48 +3,12 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, fmt::Debug};
 use threshold_bls::{
     group::{Element, Point, Scalar},
-    poly::Poly,
-    sig::Share,
+    poly::{Poly, Idx},
+    sig::{Share},
 };
 use crate::poprf::poprf::POPRFInterface;
 use crate::POPRFError;
 use crate::poprf::Scheme;
-
-/// The `Scheme` trait contains the basic information of the groups over which the PRF operations
-/// takes places and a way to create a valid key pair.
-///
-/// The Scheme trait is necessary to implement for "simple" tagged PRF scheme as well for threshold
-/// based POPRF scheme.
-// TODO: Make keypair a function in POPRFInterface, add keygen APIs to PRFScheme and POPRFScheme
-// TODO: Add this back with better trait bounds?
-/*pub trait Scheme: Debug {
-    /// `Private` represents the field over which private keys are represented.
-    type Private: Scalar<RHS = Self::Private>;
-    /// `Public` represents the group over which the public keys are
-    /// represented.
-    type Public: Point<RHS = Self::Private> + Serialize + DeserializeOwned;
-    /// `Evaluation` represents the group over which the evaluations are reresented.
-    type Evaluation: Element<RHS = Self::Private> + Serialize + DeserializeOwned;
-
-    /// Returns a new fresh keypair usable by the scheme.
-    fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {
-        let private = Self::Private::rand(rng);
-
-        let mut public = Self::Public::one();
-        public.mul(&private);
-
-        (private, public)
-    }
-}*/
-
-/*impl<C> Scheme for C
-where
-    C : POPRFInterface + Debug
-{
-    type Private = C::Scalar;
-    type Public = C::G2;
-    type Evaluation = C::GT;
-}*/
 
 pub trait PRFScheme: Scheme {
     type Error: Error;
@@ -67,6 +31,8 @@ pub trait POPRFScheme: Scheme {
     /// The blinded response type which results from an eval on a blinded message and plaintext tag.
     type BlindResp: Serialize + DeserializeOwned;
 
+    type Resp;
+
     //fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> (Self::Token, Self::BlindMsg);
     fn blind_msg(msg: &[u8]) -> Result<(Self::Token, Self::BlindMsg), Self::Error>;
 
@@ -81,7 +47,14 @@ pub trait POPRFScheme: Scheme {
         token: &Self::Token,
         tag: &[u8],
         resp: &Self::BlindResp,
-    ) -> Result<Vec<u8>, Self::Error>;
+    ) -> Result<Self::Resp, Self::Error>;
+
+    fn unblind_and_hash_resp(
+        public: &Self::Public,
+        token: &Self::Token,
+        tag: &[u8],
+        resp: &Self::BlindResp,
+    ) -> Result<Vec<u8>, Self::Error>; 
 }
 
 impl<C> POPRFScheme for C
@@ -92,6 +65,7 @@ where
     type Token = (C::Private, C::Private, C::Private);
     type BlindMsg = (C::Private, C::Private, C::Private, C::Public, C::Public);
     type BlindResp = (C::Evaluation, C::Evaluation);
+    type Resp = C::Evaluation;
 
     fn blind_msg(msg: &[u8]) -> Result<(Self::Token, Self::BlindMsg), Self::Error> {
         let (r,c,d,a,b) = C::req(msg).unwrap();
@@ -121,6 +95,18 @@ where
         token: &Self::Token,
         tag: &[u8],
         resp: &Self::BlindResp,
+    ) -> Result<Self::Resp, Self::Error> {
+        let (r,c,d) = token;
+        let (A,B) = resp;
+        let res = C::finalize(public, A, B, tag, r, c, d)?;
+        Ok(res)
+    }
+
+    fn unblind_and_hash_resp(
+        public: &Self::Public,
+        token: &Self::Token,
+        tag: &[u8],
+        resp: &Self::BlindResp,
     ) -> Result<Vec<u8>, Self::Error> {
         let (r,c,d) = token;
         let (A,B) = resp;
@@ -136,7 +122,7 @@ pub trait ThresholdScheme: POPRFScheme {
     /// Error produced when partially signing, aggregating or verifying
     type Error: Error;
 
-    type PartialResp: Serialize + DeserializeOwned;
+    type PartialResp: Serialize + DeserializeOwned; 
 
     /// Partially signs a message with a share of the private key.
     fn partial_eval(
@@ -149,6 +135,9 @@ pub trait ThresholdScheme: POPRFScheme {
     /// not verify if the partial signatures are correct or not; it only
     /// aggregates them.
     fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>;
+
+    // TODO: Handle this with traits
+    fn resp_to_partial_resp(resp: Self::Resp, i: Idx) -> Self::PartialResp;
 }
 
 pub trait BlindThresholdScheme: ThresholdScheme {
@@ -182,7 +171,7 @@ where
 {
     type Error = <C as POPRFScheme>::Error;
 
-    type BlindPartialResp = Share<C::BlindResp>;//Share<(C::Evaluation, C::Evaluation)>;
+    type BlindPartialResp = Share<C::BlindResp>;
 
     fn blind_partial_eval(
         private: &Share<Self::Private>,
@@ -199,15 +188,14 @@ where
         tag: &[u8],
         resp: &Self::BlindPartialResp,
     ) -> Result<Self::PartialResp, <Self as BlindThresholdScheme>::Error> {
-        let (r,c,d) = token;
-        let (A,B) = resp.private;
-        let res = C::finalize(public, A, B, tag, r, c, d);
-        Ok((res, resp.index))
+        let unblind_resp = C::unblind_resp(&public.get(resp.index), token, tag, &resp.private)?;
+        Ok(C::resp_to_partial_resp(unblind_resp, resp.index))
     }
 
     fn blind_aggregate(
         threshold: usize,
         partials: &[Self::BlindPartialResp],
     ) -> Result<Self::BlindResp, <Self as BlindThresholdScheme>::Error> {
+        let res = C::aggregate(threshold, partials);
     }
 }
