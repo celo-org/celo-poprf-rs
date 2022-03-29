@@ -1,5 +1,6 @@
 //use ark_ec::hashing::field_hashers::DefaultFieldHasher;
 //use rand::prelude::*;
+use rand::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
@@ -24,14 +25,14 @@ pub trait Scheme: Debug {
     type Evaluation: Element<RHS = Self::Private> + Serialize + DeserializeOwned;
 
     // Returns a new fresh keypair usable by the scheme.
-    /*fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {
+    fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {
         let private = Self::Private::rand(rng);
 
         let mut public = Self::Public::one();
         public.mul(&private);
 
         (private, public)
-    }*/
+    }
 }
 
 pub mod poprf {
@@ -71,10 +72,10 @@ use super::*;
 
         // Prove(a, b, c/r, d)
         fn prove(
-            a: &mut Self::Public,//&mut Self::G2,
-            b: &Self::Public,//&Self::G2,
-            x: &mut Self::Private,//&mut Self::Scalar,
-            y: &mut Self::Private,//&mut Self::Scalar,
+            a: &mut Self::Public,
+            b: &Self::Public,
+            x: &mut Self::Private,
+            y: &mut Self::Private,
         ) -> Result<(Self::Private, Self::Private, Self::Private), POPRFError> {
             let rng = &mut rand::thread_rng();
             let v1 = Self::Private::rand(rng);
@@ -112,11 +113,11 @@ use super::*;
         }
 
         fn verify(
-            a: &mut Self::Public,//&mut Self::G2,
-            b: &mut Self::Public,//&mut Self::G2,
-            z: &Self::Private,//&Self::Scalar,
-            s1: &Self::Private,//&Self::Scalar,
-            s2: &Self::Private,//&Self::Scalar,
+            a: &mut Self::Public,
+            b: &mut Self::Public,
+            z: &Self::Private,
+            s1: &Self::Private,
+            s2: &Self::Private,
         ) -> Result<bool, POPRFError> {
             // v = g2^s1 * a^s2 * b^z
             let mut g2 = Self::Public::one();
@@ -140,6 +141,12 @@ use super::*;
             Ok(*z == h)
         }
 
+        fn eval(
+            k: &Self::Private,
+            t: &[u8],
+            a: &Self::Public,
+        ) -> Result<Self::Evaluation, POPRFError>;
+
         fn blind_ev(
             k: &Self::Private,
             t: &[u8],
@@ -147,43 +154,6 @@ use super::*;
             b: &Self::Public,
         ) -> Result<(Self::Evaluation, Self::Evaluation), POPRFError>;
 
-        // TODO: Separate out aggregate into its own trait
-        /*#[allow(non_snake_case)]
-        fn aggregate(
-            threshold: usize,
-            shares: &[Share<(Self::Evaluation, Self::Evaluation)>],
-        ) -> Result<(Self::Evaluation, Self::Evaluation), POPRFError> {
-            if threshold > shares.len() {
-                return Err(POPRFError::NotEnoughResponses(shares.len(), threshold));
-            }
-
-            let A_valid_shares: Vec<Eval<Self::Evaluation>> = shares
-                .iter()
-                .map(|share| {
-                    Ok(Eval {
-                        index: share.index,
-                        value: share.private.0.clone(),
-                    })
-                })
-                .collect::<Result<_, POPRFError>>()?;
-            let A = Poly::recover(threshold, A_valid_shares)?;
-
-            let B_valid_shares: Vec<Eval<Self::Evaluation>> = shares
-                .iter()
-                .map(|share| {
-                    Ok(Eval {
-                        index: share.index,
-                        value: share.private.1.clone(),
-                    })
-                })
-                .collect::<Result<_, POPRFError>>()?;
-            let B = Poly::recover(threshold, B_valid_shares)?;
-
-            Ok((A, B))
-        }*/
-
-        // TODO: Separate out aggregate into its own trait
-        #[allow(non_snake_case)]
         fn aggregate(
             threshold: usize,
             shares: &[Share<Self::Evaluation>],
@@ -201,17 +171,9 @@ use super::*;
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
-            let res = Poly::recover(threshold, A_valid_shares)?;
+            let res = Poly::recover(threshold, valid_shares)?;
 
             Ok(res)
-        }
-
-        #[allow(non_snake_case)]
-        fn blind_aggregate(
-            threshold: usize,
-            shares: &[Share<Self::Evaluation, Self::Evaluation>],
-        ) -> Result<(Self::Evaluation,Self::Evaluation), POPRFError> {
-
         }
 
         #[allow(non_snake_case)]
@@ -244,6 +206,21 @@ impl<C> poprf::POPRFInterface for G2Interface<C>
 where
     C: PairingCurve,
 {
+    #[allow(non_snake_case)]
+    fn eval(
+        k: &Self::Private,
+        t: &[u8],
+        a: &Self::Public,
+    ) -> Result<Self::Evaluation, POPRFError> {
+        let mut h = C::G1::new();
+        h.map(t).map_err(|_| POPRFError::HashingError)?;
+        h.mul(k);
+        // A <- e(H1(t)^k, a)
+        let A = C::pair(&h, a);
+
+        Ok(A)
+    }
+
     #[allow(non_snake_case)]
     fn blind_ev(
         k: &Self::Private,

@@ -2,8 +2,8 @@ use rand_core::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, fmt::Debug};
 use threshold_bls::{
-    group::{Element, Point, Scalar},
-    poly::{Poly, Idx},
+    group::{Element, Scalar},
+    poly::Poly,
     sig::{Share},
 };
 use crate::poprf::poprf::POPRFInterface;
@@ -25,6 +25,8 @@ pub trait POPRFScheme: Scheme {
     /// The blinding factor which will be used to unblind and verify the message.
     type Token: Serialize + DeserializeOwned;
 
+    type Proof: Serialize + DeserializeOwned;
+
     /// The blinded message type which is created by the client.
     type BlindMsg: Serialize + DeserializeOwned;
 
@@ -32,7 +34,13 @@ pub trait POPRFScheme: Scheme {
     type BlindResp: Serialize + DeserializeOwned;
 
     /// The unblinded response type which results from unblinding a blinded response
-    type Resp;
+    type Resp: Serialize + DeserializeOwned;
+
+    /// The partial response type
+    type PartialResp: Serialize + DeserializeOwned; 
+
+    /// The blind partial response type
+    type BlindPartialResp: Serialize + DeserializeOwned;
 
     //fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> (Self::Token, Self::BlindMsg);
     fn blind_msg(msg: &[u8]) -> Result<(Self::Token, Self::BlindMsg), Self::Error>;
@@ -48,14 +56,37 @@ pub trait POPRFScheme: Scheme {
         token: &Self::Token,
         tag: &[u8],
         resp: &Self::BlindResp,
-    ) -> Result<Self::Resp, Self::Error>;
+    ) -> Result<Vec<u8>, Self::Error>; 
 
-    fn unblind_and_hash_resp(
-        public: &Self::Public,
+    /// Partially signs a message with a share of the private key.
+    /*fn partial_eval(
+        private: &Share<Self::Private>,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Self::PartialResp, Self::Error>;*/
+
+    /// Aggregates all partials signature together. Note that this method does
+    /// not verify if the partial signatures are correct or not; it only
+    /// aggregates them.
+    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error>;
+
+    fn blind_partial_eval(
+        private: &Share<Self::Private>,
+        tag: &[u8],
+        msg: &Self::BlindMsg,
+    ) -> Result<Self::BlindPartialResp, Self::Error>;
+
+    fn unblind_partial_resp(
+        public: &Poly<Self::Public>,
         token: &Self::Token,
         tag: &[u8],
-        resp: &Self::BlindResp,
-    ) -> Result<Vec<u8>, Self::Error>; 
+        resp: &Self::BlindPartialResp,
+    ) -> Result<Self::PartialResp, Self::Error>;
+
+    fn blind_aggregate(
+        threshold: usize,
+        partials: &[Self::BlindPartialResp],
+    ) -> Result<Self::BlindResp, Self::Error>;
 }
 
 impl<C> POPRFScheme for C
@@ -64,9 +95,12 @@ where
 {
     type Error = POPRFError;
     type Token = (C::Private, C::Private, C::Private);
-    type BlindMsg = (C::Private, C::Private, C::Private, C::Public, C::Public);
+    type Proof = (C::Private, C::Private, C::Private);
+    type BlindMsg = (Self::Proof, C::Public, C::Public);
     type BlindResp = (C::Evaluation, C::Evaluation);
     type Resp = C::Evaluation;
+    type PartialResp = Share<Self::Resp>;
+    type BlindPartialResp = Share<Self::BlindResp>;
 
     fn blind_msg(msg: &[u8]) -> Result<(Self::Token, Self::BlindMsg), Self::Error> {
         let (r,c,d,a,b) = C::req(msg).unwrap();
@@ -75,35 +109,26 @@ where
         c_div_r.mul(&r_inv);
         let (z,s_1,s_2) = C::prove(&mut a.clone(),&b,&mut c_div_r.clone(),&mut d.clone()).unwrap();
         let token = (r,c,d);
-        let blmsg = (z,s_1,s_2,a,b);
+        let proof = (z,s_1,s_2);
+        let blmsg = (proof,a,b);
         Ok((token, blmsg))
     }
 
+    #[allow(non_snake_case)]
     fn blind_eval(
         private: &Self::Private,
         tag: &[u8],
         msg: &Self::BlindMsg,
     ) -> Result<Self::BlindResp, Self::Error> {
-        let (z,s_1,s_2,a,b) = msg;
-        // TODO: Throw error if bool false
-        let bool = C::verify(&mut a.clone(), &mut b.clone(), &z, &s_1, &s_2)?;
+        let (pi,a,b) = msg;
+        let (z,s_1,s_2) = pi;
+        C::verify(&mut a.clone(), &mut b.clone(), &z, &s_1, &s_2)?.then(|| ()).ok_or(POPRFError::VerifyError)?;
         let (A,B) = C::blind_ev(private, tag, a, b)?;
         Ok((A,B))
     }
 
+    #[allow(non_snake_case)]
     fn unblind_resp(
-        public: &Self::Public,
-        token: &Self::Token,
-        tag: &[u8],
-        resp: &Self::BlindResp,
-    ) -> Result<Self::Resp, Self::Error> {
-        let (r,c,d) = token;
-        let (A,B) = resp;
-        let res = C::finalize(public, A, B, tag, r, c, d)?;
-        Ok(res)
-    }
-
-    fn unblind_and_hash_resp(
         public: &Self::Public,
         token: &Self::Token,
         tag: &[u8],
@@ -117,90 +142,52 @@ where
         Ok(Vec::<u8>::new())
     }
 
-}
-
-pub trait ThresholdScheme: POPRFScheme {
-    /// Error produced when partially signing, aggregating or verifying
-    type Error: Error;
-
-    type PartialResp: Serialize + DeserializeOwned; 
-
-    /// Partially signs a message with a share of the private key.
-    fn partial_eval(
-        private: &Share<Self::Private>,
-        tag: &[u8],
-        msg: &[u8],
-    ) -> Result<Self::PartialResp, <Self as ThresholdScheme>::Error>;
-
-    /// Aggregates all partials signature together. Note that this method does
-    /// not verify if the partial signatures are correct or not; it only
-    /// aggregates them.
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Self::Resp, <Self as ThresholdScheme>::Error>;
-
-    /// Aggregates all partial signatures together and hashes the result. Does not verify partial
-    /// signatures.
-    fn aggregate_and_hash(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>;
-
-    // TODO: Handle this with traits
-    fn resp_to_partial_resp(resp: Self::Resp, i: Idx) -> Self::PartialResp;
-}
-
-pub trait BlindThresholdScheme: ThresholdScheme {
-    /// Error produced when partially signing, aggregating or verifying
-    type Error: Error;
-
-    type BlindPartialResp: Serialize + DeserializeOwned;
-
     fn blind_partial_eval(
         private: &Share<Self::Private>,
         tag: &[u8],
         msg: &Self::BlindMsg,
-    ) -> Result<Self::BlindPartialResp, <Self as BlindThresholdScheme>::Error>;
-
-    fn unblind_partial_resp(
-        public: &Poly<Self::Public>,
-        token: &Self::Token,
-        tag: &[u8],
-        resp: &Self::BlindPartialResp,
-    ) -> Result<Self::PartialResp, <Self as BlindThresholdScheme>::Error>;
-
-    fn blind_aggregate(
-        threshold: usize,
-        partials: &[Self::BlindPartialResp],
-    ) -> Result<Self::BlindResp, <Self as BlindThresholdScheme>::Error>;
-}
-
-impl<C> BlindThresholdScheme for C
-where
-    C: POPRFInterface + ThresholdScheme + Debug,
-{
-    type Error = <C as POPRFScheme>::Error;
-
-    type BlindPartialResp = Share<C::BlindResp>;
-
-    fn blind_partial_eval(
-        private: &Share<Self::Private>,
-        tag: &[u8],
-        msg: &Self::BlindMsg,
-    ) -> Result<Self::BlindPartialResp, <Self as BlindThresholdScheme>::Error> {
-        let resp = C::blind_eval(&private.private, tag, msg)?;
+    ) -> Result<Self::BlindPartialResp, Self::Error> {
+        let resp = Self::blind_eval(&private.private, tag, msg)?;
         Ok(Share{ index: private.index, private: resp })
     }
 
+    #[allow(non_snake_case)]
     fn unblind_partial_resp(
         public: &Poly<Self::Public>,
         token: &Self::Token,
         tag: &[u8],
         resp: &Self::BlindPartialResp,
-    ) -> Result<Self::PartialResp, <Self as BlindThresholdScheme>::Error> {
-        let unblind_resp = C::unblind_resp(&public.get(resp.index), token, tag, &resp.private)?;
-        Ok(C::resp_to_partial_resp(unblind_resp, resp.index))
+    ) -> Result<Self::PartialResp, Self::Error> {
+        let (r,c,d) = token;
+        let (A,B) = resp.private.clone();
+        let res = C::finalize(&public.get(resp.index), &A, &B, tag, r, c, d)?;
+        Ok(Share { private: res, index: resp.index })
     }
 
+    #[allow(non_snake_case)]
     fn blind_aggregate(
         threshold: usize,
         partials: &[Self::BlindPartialResp],
-    ) -> Result<Self::BlindResp, <Self as BlindThresholdScheme>::Error> {
-        let res = C::aggregate(threshold, partials);
+    ) -> Result<Self::BlindResp, Self::Error> {
+        let A_vec = partials.into_iter().map(|p|  Share { private: p.private.0.clone(), index: p.index }).collect::<Vec<Share<C::Evaluation>>>();
+        let B_vec = partials.into_iter().map(|p|  Share { private: p.private.1.clone(), index: p.index }).collect::<Vec<Share<C::Evaluation>>>();
+        let A = C::aggregate(threshold, &A_vec)?;
+        let B = C::aggregate(threshold, &B_vec)?;
+        Ok((A,B))
+    }
+
+    /*fn partial_eval(
+        private: &Share<Self::Private>,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Self::PartialResp, Self::Error> {
+        
+    }*/
+
+    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error> {
+        let vec = partials.into_iter().map(|p|  Share { private: p.private.clone(), index: p.index }).collect::<Vec<Share<C::Evaluation>>>();
+        let res = C::aggregate(threshold, &vec)?;
+        // TODO: Hash output
+        Ok(Vec::<u8>::new())
     }
 }

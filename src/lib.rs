@@ -17,6 +17,9 @@ pub enum POPRFError {
     #[error("could not recover from shares")]
     RecoverError(#[from] threshold_bls::poly::PolyError),
 
+    #[error("proof verification failed")]
+    VerifyError,
+
     #[error("could not inverse")]
     NoInverse,
 }
