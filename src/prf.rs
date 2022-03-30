@@ -1,14 +1,5 @@
-use rand_core::RngCore;
-use serde::{de::DeserializeOwned, Serialize};
-use std::{error::Error, fmt::Debug};
-use threshold_bls::{
-    group::{Element, Scalar},
-    poly::Poly,
-    sig::{Share},
-};
-use crate::poprf::poprf::POPRF;
-use crate::POPRFError;
 use crate::poprf::Scheme;
+use std::error::Error;
 
 pub trait PRFScheme: Scheme {
     type Error: Error;

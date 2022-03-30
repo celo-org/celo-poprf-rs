@@ -1,14 +1,8 @@
+use crate::poprf::Scheme;
 use rand_core::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
-use std::{error::Error, fmt::Debug};
-use threshold_bls::{
-    group::{Element, Scalar},
-    poly::Poly,
-    sig::{Share},
-};
-use crate::poprf::poprf::POPRF;
-use crate::POPRFError;
-use crate::poprf::Scheme;
+use std::error::Error;
+use threshold_bls::{poly::Poly, sig::Share};
 
 pub trait PRFScheme: Scheme {
     type Error: Error;
@@ -40,12 +34,15 @@ pub trait POPRFScheme: Scheme {
     type BlindResp: Serialize + DeserializeOwned;
 
     /// The partial response type
-    type PartialResp: Serialize + DeserializeOwned; 
+    type PartialResp: Serialize + DeserializeOwned;
 
     /// The blind partial response type
     type BlindPartialResp: Serialize + DeserializeOwned;
 
-    fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> Result<(Self::Token, Self::BlindMsg), Self::Error>;
+    fn blind_msg<R: RngCore>(
+        msg: &[u8],
+        rng: &mut R,
+    ) -> Result<(Self::Token, Self::BlindMsg), Self::Error>;
 
     fn blind_eval(
         private: &Self::Private,
@@ -58,7 +55,7 @@ pub trait POPRFScheme: Scheme {
         token: &Self::Token,
         tag: &[u8],
         resp: &Self::BlindResp,
-    ) -> Result<Vec<u8>, Self::Error>; 
+    ) -> Result<Vec<u8>, Self::Error>;
 
     /// Evaluates the POPRF over a message and tag with a share of the private key.
     fn partial_eval(

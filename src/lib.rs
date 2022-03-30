@@ -1,14 +1,17 @@
 pub mod api;
 pub mod ffi;
 
-mod poprf;
 mod hash_to_field;
-mod prf;
+mod poprf;
 mod poprfscheme;
+mod prf;
+use bls_crypto::BLSError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum POPRFError {
+    //#[error("could not hash to curve")]
+    //HashingError(#[from] bls_crypto::BLSError),
     #[error("could not hash to curve")]
     HashingError,
 

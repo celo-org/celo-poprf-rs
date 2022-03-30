@@ -1,5 +1,6 @@
 //use ark_ec::hashing::field_hashers::DefaultFieldHasher;
 //use rand::prelude::*;
+use crate::POPRFError;
 use rand::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
@@ -8,7 +9,6 @@ use threshold_bls::{
     poly::{Eval, Poly},
     sig::Share,
 };
-use crate::POPRFError;
 
 /// The `Scheme` trait contains the basic information of the groups over which the PRF operations
 /// takes places and a way to create a valid key pair.
@@ -36,7 +36,7 @@ pub trait Scheme: Debug {
 }
 
 pub mod poprf {
-use super::*;
+    use super::*;
     pub trait POPRF: Scheme {
         fn req<R: RngCore>(
             msg: &[u8],
@@ -51,7 +51,7 @@ use super::*;
             ),
             POPRFError,
         > {
-            let r = Self::Private::rand(rng); // TODO: move to preprocessing?
+            let r = Self::Private::rand(rng);
             let c = Self::Private::rand(rng);
             let d = Self::Private::rand(rng);
 
@@ -141,11 +141,7 @@ use super::*;
             Ok(*z == h)
         }
 
-        fn eval(
-            k: &Self::Private,
-            t: &[u8],
-            a: &[u8],
-        ) -> Result<Self::Evaluation, POPRFError>;
+        fn eval(k: &Self::Private, t: &[u8], a: &[u8]) -> Result<Self::Evaluation, POPRFError>;
 
         fn blind_ev(
             k: &Self::Private,
@@ -189,29 +185,24 @@ use super::*;
     }
 }
 
-// G2Interface implements pairings with public keys over G2
+// G2Scheme implements pairings with public keys over G2
 #[derive(Clone, Debug)]
-pub struct G2Interface<C: PairingCurve> {
+pub struct G2Scheme<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
-impl<C: PairingCurve> Scheme for G2Interface<C>
-{
-    type Private = C::Scalar; 
-    type Public = C::G2; 
-    type Evaluation = C::GT; 
+impl<C: PairingCurve> Scheme for G2Scheme<C> {
+    type Private = C::Scalar;
+    type Public = C::G2;
+    type Evaluation = C::GT;
 }
 
-impl<C> poprf::POPRF for G2Interface<C>
+impl<C> poprf::POPRF for G2Scheme<C>
 where
     C: PairingCurve,
 {
     #[allow(non_snake_case)]
-    fn eval(
-        k: &Self::Private,
-        t: &[u8],
-        m: &[u8],
-    ) -> Result<Self::Evaluation, POPRFError> {
+    fn eval(k: &Self::Private, t: &[u8], m: &[u8]) -> Result<Self::Evaluation, POPRFError> {
         let mut h1 = C::G1::new();
         let mut h2 = C::G2::new();
         h1.map(t).map_err(|_| POPRFError::HashingError)?;
@@ -254,7 +245,7 @@ where
         // y_A = A^(r^(-1))
         let r_inv = r.inverse().ok_or(POPRFError::NoInverse)?;
         let mut y_A = A.clone();
-        y_A.mul(&r_inv); 
+        y_A.mul(&r_inv);
 
         let mut h = C::G1::new();
         h.map(t).map_err(|_| POPRFError::HashingError)?;
