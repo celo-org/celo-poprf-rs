@@ -1,5 +1,5 @@
 pub mod api;
-pub mod ffi
+pub mod ffi;
 
 mod poprf;
 mod hash_to_field;

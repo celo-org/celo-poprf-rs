@@ -25,8 +25,16 @@ pub trait POPRFScheme: Scheme {
     /// The blinding factor which will be used to unblind and verify the message.
     type Token: Serialize + DeserializeOwned;
 
+    // TODO: Does not really need to be part of the public interface. Can it be removed?
+    /// Proof included as part of BlindMsg to show that the message was created correctly.
+    type Proof: Serialize + DeserializeOwned;
+
     /// The blinded message type which is created by the client.
     type BlindMsg: Serialize + DeserializeOwned;
+
+    // TODO: Does not really need to be part of the public interface. Can it be removed?
+    /// Unblinded and unhashed evaluation response.
+    type Resp: Serialize + DeserializeOwned;
 
     /// The blinded response type which results from an eval on a blinded message and plaintext tag.
     type BlindResp: Serialize + DeserializeOwned;
@@ -37,8 +45,7 @@ pub trait POPRFScheme: Scheme {
     /// The blind partial response type
     type BlindPartialResp: Serialize + DeserializeOwned;
 
-    //fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> (Self::Token, Self::BlindMsg);
-    fn blind_msg(msg: &[u8]) -> Result<(Self::Token, Self::BlindMsg), Self::Error>;
+    fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> Result<(Self::Token, Self::BlindMsg), Self::Error>;
 
     fn blind_eval(
         private: &Self::Private,

@@ -38,8 +38,9 @@ pub trait Scheme: Debug {
 pub mod poprf {
 use super::*;
     pub trait POPRF: Scheme {
-        fn req(
+        fn req<R: RngCore>(
             msg: &[u8],
+            rng: &mut R,
         ) -> Result<
             (
                 Self::Private,
@@ -50,7 +51,6 @@ use super::*;
             ),
             POPRFError,
         > {
-            let rng = &mut rand::thread_rng();
             let r = Self::Private::rand(rng); // TODO: move to preprocessing?
             let c = Self::Private::rand(rng);
             let d = Self::Private::rand(rng);
@@ -71,13 +71,13 @@ use super::*;
         }
 
         // Prove(a, b, c/r, d)
-        fn prove(
+        fn prove<R: RngCore>(
             a: &mut Self::Public,
             b: &Self::Public,
             x: &mut Self::Private,
             y: &mut Self::Private,
+            rng: &mut R,
         ) -> Result<(Self::Private, Self::Private, Self::Private), POPRFError> {
-            let rng = &mut rand::thread_rng();
             let v1 = Self::Private::rand(rng);
             let v2 = Self::Private::rand(rng);
 
