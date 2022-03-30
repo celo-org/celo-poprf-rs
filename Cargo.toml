@@ -17,12 +17,15 @@ ark-serialize = { version = "0.3.0", features = [ "derive" ] }
 ark-std = { version = "0.3.0" }
 bls-crypto = { git = "https://github.com/celo-org/bls-crypto" }
 hex = "0.4.3"
-getrandom = { version = "0.2", default-features = false, optional = true }
 rand_core = { version = "0.6.3", default-features = false }
-rand_chacha = { version = "0.3.1", default-features = false, optional = true }
 log = "0.4.14"
 rand = "0.8.5"
 serde = {version = "1.0.106", features = ["derive"] }
+
+# Required for WASM interface
+blake2 = { version = 0.10, default-features = false, optional = true }
+getrandom = { version = "0.2", default-features = false, optional = true }
+rand_chacha = { version = "0.3.1", default-features = false, optional = true }
 wasm-bindgen = { version = "0.2.60", optional = true }
 
 #threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
@@ -31,4 +34,4 @@ thiserror = "1.0.15"
 
 
 [features]
-wasm = ["wasm-bindgen", "getrandom/js", "rand_chacha"]
+wasm = ["wasm-bindgen", "getrandom/js", "blake2", "rand_chacha"]
