@@ -4,7 +4,7 @@ use std::{error::Error, fmt::Debug};
 use threshold_bls::{
     group::{Element, Scalar},
     poly::Poly,
-    sig::{Share},
+    sig::Share,
 };
 use crate::poprf::poprf::POPRF;
 use crate::api::POPRFScheme;
@@ -24,12 +24,12 @@ where
     type PartialResp = Share<Self::Resp>;
     type BlindPartialResp = Share<Self::BlindResp>;
 
-    fn blind_msg(msg: &[u8]) -> Result<(Self::Token, Self::BlindMsg), Self::Error> {
-        let (r,c,d,a,b) = C::req(msg).unwrap();
+    fn blind_msg<R: RngCore>(msg: &[u8], rng: &mut R) -> Result<(Self::Token, Self::BlindMsg), Self::Error> {
+        let (r,c,d,a,b) = C::req(msg, rng).unwrap();
         let mut c_div_r = c.clone();
         let r_inv = r.inverse().ok_or(Self::Error::NoInverse).unwrap();
         c_div_r.mul(&r_inv);
-        let (z,s_1,s_2) = C::prove(&mut a.clone(),&b,&mut c_div_r.clone(),&mut d.clone()).unwrap();
+        let (z,s_1,s_2) = C::prove(&mut a.clone(),&b,&mut c_div_r.clone(),&mut d.clone(), rng).unwrap();
         let token = (r,c,d);
         let proof = (z,s_1,s_2);
         let blmsg = (proof,a,b);
