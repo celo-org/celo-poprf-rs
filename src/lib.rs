@@ -1,6 +1,8 @@
-pub mod poprf;
+mod poprf;
 mod hash_to_field;
-mod traits;
+pub mod api;
+mod prf;
+mod poprfscheme;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

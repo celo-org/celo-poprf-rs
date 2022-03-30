@@ -37,7 +37,7 @@ pub trait Scheme: Debug {
 
 pub mod poprf {
 use super::*;
-    pub trait POPRFInterface : Scheme {
+    pub trait POPRF: Scheme {
         fn req(
             msg: &[u8],
         ) -> Result<
@@ -202,7 +202,7 @@ impl<C: PairingCurve> Scheme for G2Interface<C>
     type Evaluation = C::GT; 
 }
 
-impl<C> poprf::POPRFInterface for G2Interface<C>
+impl<C> poprf::POPRF for G2Interface<C>
 where
     C: PairingCurve,
 {
