@@ -1,19 +1,17 @@
 //! # BLS12-377 WASM Bindings for the POPRF
 use wasm_bindgen::prelude::*;
 
+use blake2::{Blake2s256, Digest};
 use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
-use blake2::{Blake2s256, Digest};
 
 use threshold_bls::{poly::Idx, schemes::bls12_377::G2Scheme as SigScheme, sig::Scheme};
 
 use crate::{
-    poprf::POPRF,
-    ffi::{PublicKey, PrivateKey, PARTIAL_SIG_LENGTH},
+    ffi::{PrivateKey, PublicKey, PARTIAL_SIG_LENGTH},
     poly::{Idx as Index, Poly},
-    traits::{
-        Share, Scheme, PRFScheme, POPRFScheme, ThresholdScheme, BlindThresholdScheme,
-    },
+    poprf::POPRF,
+    traits::{BlindThresholdScheme, POPRFScheme, PRFScheme, Scheme, Share, ThresholdScheme},
 };
 
 type Result<T> = std::result::Result<T, JsValue>;
@@ -61,12 +59,18 @@ pub fn blind(message: &[u8], seed: &[u8]) -> BlindedMessage {
 ///
 /// - If any of the inputs fail to deserialize.
 /// - If unblinding fails, including verification failure.
-pub fn unblind(public_key_buf: &[u8], blinding_factor_buf: &[u8], tag: &[u8], blinded_resp_buf: &[u8]) -> Result<Vec<u8>> {
+pub fn unblind(
+    public_key_buf: &[u8],
+    blinding_factor_buf: &[u8],
+    tag: &[u8],
+    blinded_resp_buf: &[u8],
+) -> Result<Vec<u8>> {
     let public_key: PublicKey = bincode::deserialize(public_key_buf)
         .map_err(|err| JsValue::from_str(&format!("could not deserialize public key {}", err)))?;
 
-    let blinded_resp: POPRF::BlindResp = bincode::deserialize(blinded_resp_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize blinded response {}", err)))?;
+    let blinded_resp: POPRF::BlindResp = bincode::deserialize(blinded_resp_buf).map_err(|err| {
+        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+    })?;
 
     let blinding_factor: Token<PrivateKey> =
         bincode::deserialize(blinding_factor_buf).map_err(|err| {
@@ -105,12 +109,18 @@ pub fn eval(private_key_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8
 ///
 /// - If any of the inputs fail to deserialize.
 /// - If the evaluation fails.
-pub fn blind_eval(private_key_buf: &[u8], tag: &[u8], blinded_message_buf: &[u8]) -> Result<Vec<u8>> {
+pub fn blind_eval(
+    private_key_buf: &[u8],
+    tag: &[u8],
+    blinded_message_buf: &[u8],
+) -> Result<Vec<u8>> {
     let private_key: PrivateKey = bincode::deserialize(private_key_buf)
         .map_err(|err| JsValue::from_str(&format!("could not deserialize private key {}", err)))?;
 
-    let blinded_message: POPRF::BlindMsg = bincode::deserialize(blinded_message_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize blinded response {}", err)))?;
+    let blinded_message: POPRF::BlindMsg =
+        bincode::deserialize(blinded_message_buf).map_err(|err| {
+            JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+        })?;
 
     POPRF::blind_eval(&private_key, tag, &blinded_message)
         .map_err(|err| JsValue::from_str(&format!("could not sign message: {}", err)))
@@ -147,13 +157,19 @@ pub fn partial_eval(share_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<
 ///
 /// NOTE: This method must NOT be called with a PrivateKey which is not generated via a
 /// secret sharing scheme.
-pub fn blind_partial_eval(share_buf: &[u8], tag, blinded_message_buf: &[u8]) -> Result<Vec<u8>> {
+pub fn blind_partial_eval(
+    share_buf: &[u8],
+    tag: &[u8],
+    blinded_message_buf: &[u8],
+) -> Result<Vec<u8>> {
     let share: Share<PrivateKey> = bincode::deserialize(share_buf).map_err(|err| {
         JsValue::from_str(&format!("could not deserialize private key share {}", err))
     })?;
 
-    let blinded_message: POPRF::BlindMsg = bincode::deserialize(blinded_message_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize blinded response {}", err)))?;
+    let blinded_message: POPRF::BlindMsg =
+        bincode::deserialize(blinded_message_buf).map_err(|err| {
+            JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+        })?;
 
     POPRF::blind_partial_eval(&share, tag, &blinded_message)
         .map_err(|err| JsValue::from_str(&format!("could not produce partial evaluation: {}", err)))
@@ -190,7 +206,9 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
         .chunks(PARTIAL_RESPONSE_LENGTH)
         .map(|buf| bincode.deserialize::<PartialResp>(buf))
         .collect()
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize partial responses {}", err)))?;
+        .map_err(|err| {
+            JsValue::from_str(&format!("could not deserialize partial responses {}", err))
+        })?;
 
     POPRF::aggregate(threshold, &evaluations)
         .map_err(|err| JsValue::from_str(&format!("could not aggregate evaluations: {}", err)))
@@ -224,7 +242,12 @@ pub fn aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Result<Vec
         .chunks(BLIND_PARTIAL_RESPONSE_LENGTH)
         .map(|buf| bincode.deserialize::<BlindPartialResp>(buf))
         .collect()
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize blinded partial responses {}", err)))?;
+        .map_err(|err| {
+            JsValue::from_str(&format!(
+                "could not deserialize blinded partial responses {}",
+                err
+            ))
+        })?;
 
     POPRF::blind_aggregate(threshold, &blinded_evaluations)
         .map_err(|err| JsValue::from_str(&format!("could not aggregate evaluations: {}", err)))
