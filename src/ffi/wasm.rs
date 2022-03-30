@@ -5,13 +5,11 @@ use blake2::{Blake2s256, Digest};
 use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
 
-use threshold_bls::{poly::Idx, schemes::bls12_377::G2Scheme as SigScheme, sig::Scheme};
-
 use crate::{
-    ffi::{PrivateKey, PublicKey, PARTIAL_SIG_LENGTH},
-    poly::{Idx as Index, Poly},
-    poprf::POPRF,
-    traits::{BlindThresholdScheme, POPRFScheme, PRFScheme, Scheme, Share, ThresholdScheme},
+    POPRF,
+    api::{Idx, Poly, Share, POPRFScheme},
+    ffi::{PrivateKey, PublicKey, PARTIAL_RESPONSE_LENGTH, BLIND_PARTIAL_RESPONSE_LENGTH},
+    poprf::Scheme,
 };
 
 type Result<T> = std::result::Result<T, JsValue>;
@@ -31,7 +29,7 @@ type Result<T> = std::result::Result<T, JsValue>;
 ///
 /// # Safety
 ///
-/// - If the same seed is used twice, the blinded result WILL be the same
+/// - If the same seed and message is used twice, the blinded result WILL be the same.
 pub fn blind(message: &[u8], seed: &[u8]) -> BlindedMessage {
     // convert the seed to randomness
     let mut rng = get_rng(&[message, seed]);
@@ -72,7 +70,7 @@ pub fn unblind(
         JsValue::from_str(&format!("could not deserialize blinded response {}", err))
     })?;
 
-    let blinding_factor: Token<PrivateKey> =
+    let blinding_factor: POPRF::Token =
         bincode::deserialize(blinding_factor_buf).map_err(|err| {
             JsValue::from_str(&format!("could not deserialize blinding factor {}", err))
         })?;
@@ -202,9 +200,9 @@ pub fn blind_partial_eval(
 /// - If the aggregation fails.
 pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
     // Break the flattened vector to and deserialize the chunks in partial evaluations.
-    let evaluations: Vec<PartialResp> = evaluations_buf
+    let evaluations: Vec<POPRF::PartialResp> = evaluations_buf
         .chunks(PARTIAL_RESPONSE_LENGTH)
-        .map(|buf| bincode.deserialize::<PartialResp>(buf))
+        .map(|buf| bincode::deserialize::<POPRF::PartialResp>(buf))
         .collect()
         .map_err(|err| {
             JsValue::from_str(&format!("could not deserialize partial responses {}", err))
@@ -236,11 +234,11 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
 ///
 /// - If any of the inputs fail to deserialize.
 /// - If the aggregation fails.
-pub fn aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Result<Vec<u8>> {
+pub fn blind_aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Result<Vec<u8>> {
     // Break the flattened vector to and deserialize the chunks in blind partial evaluations.
-    let blinded_evaluations: Vec<BlindPartialResp> = blinded_evaluations_buf
+    let blinded_evaluations: Vec<POPRF::BlindPartialResp> = blinded_evaluations_buf
         .chunks(BLIND_PARTIAL_RESPONSE_LENGTH)
-        .map(|buf| bincode.deserialize::<BlindPartialResp>(buf))
+        .map(|buf| bincode::deserialize::<POPRF::BlindPartialResp>(buf))
         .collect()
         .map_err(|err| {
             JsValue::from_str(&format!(
@@ -264,13 +262,11 @@ pub fn aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Result<Vec
 ///
 /// WARNING: This is a helper function for local testing of the library. Do not use
 /// in production, unless you trust the person that generated the keys.
-///
-/// The seed MUST be at least 32 bytes long
 pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Keys {
     let mut rng = get_rng(&[seed]);
     let private = Poly::<PrivateKey>::new_from(t - 1, &mut rng);
     let shares = (0..n)
-        .map(|i| private.eval(i as Index))
+        .map(|i| private.eval(i as Idx))
         .map(|e| Share {
             index: e.index,
             private: e.value,
@@ -289,11 +285,11 @@ pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Keys {
 /// A blinded message along with the blinding_factor used to produce it
 pub struct BlindedMessage {
     /// The resulting blinded message.
-    message: POPRF::BlindMsg,
+    message: <POPRF as POPRFScheme>::BlindMsg,
     /// The blinding_factor which was used to generate the blinded message. This will be used
     /// to unblind the signature received on the blinded message to a valid signature
     /// on the unblinded message.
-    blinding_factor: Token<PrivateKey>,
+    blinding_factor: <POPRF as POPRFScheme>::Token,
 }
 
 #[wasm_bindgen]
@@ -335,10 +331,6 @@ impl Keypair {
 }
 
 /// Generates a single private key from the provided seed.
-///
-/// # Safety
-///
-/// The seed MUST be at least 32 bytes long
 #[wasm_bindgen]
 pub fn keygen(seed: &[u8]) -> Keypair {
     let mut rng = get_rng(&[seed]);
@@ -378,6 +370,8 @@ impl Keys {
     }
 }
 
+// Creates a PRNG for use in deterministic blinding of messages or in key generation from the array
+// of seeds provided as input.
 fn get_rng(seeds: &[&[u8]]) -> impl RngCore {
     let mut outer = Blake2s256::new();
     outer.update("Celo POPRF WASM RNG Seed");

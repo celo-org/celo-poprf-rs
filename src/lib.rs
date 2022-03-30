@@ -5,13 +5,23 @@ mod hash_to_field;
 mod poprf;
 mod poprfscheme;
 mod prf;
-use bls_crypto::BLSError;
+
 use thiserror::Error;
+
+/// Default POPRF instantiation.
+pub type POPRF = bls12_377::G2Scheme;
+
+/// BLS12-377 instantiations.
+pub mod bls12_377 {
+    use threshold_bls::curve::bls12377::PairingCurve;
+    pub use threshold_bls::curve::bls12377::{G1Curve, G2Curve};
+
+    /// Public Keys and messages on G2, tags on G1.
+    pub type G2Scheme = super::poprf::G2Scheme<PairingCurve>;
+}
 
 #[derive(Debug, Error)]
 pub enum POPRFError {
-    //#[error("could not hash to curve")]
-    //HashingError(#[from] bls_crypto::BLSError),
     #[error("could not hash to curve")]
     HashingError,
 

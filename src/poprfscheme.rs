@@ -3,7 +3,6 @@ use crate::poprf::poprf::POPRF;
 use crate::POPRFError;
 use bls_crypto::hashers::{DirectHasher, Hasher};
 use rand_core::RngCore;
-use serde::Serialize;
 use std::fmt::Debug;
 use threshold_bls::{
     group::{Element, Scalar},
