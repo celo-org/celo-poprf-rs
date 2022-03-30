@@ -3,6 +3,10 @@ name = "celo-poprf-rs"
 version = "0.1.0"
 edition = "2021"
 
+description = "A threshold-computable partially-oblivous psuedo-random function"
+repository = "https://github.com/celo-org/celo-poprf-rs"
+license = "Apache-2.0"
+
 [lib]
 crate-type = ["lib", "cdylib", "staticlib"]
 name = "poprf"
