@@ -25,16 +25,11 @@ pub trait POPRFScheme: Scheme {
     /// The blinding factor which will be used to unblind and verify the message.
     type Token: Serialize + DeserializeOwned;
 
-    type Proof: Serialize + DeserializeOwned;
-
     /// The blinded message type which is created by the client.
     type BlindMsg: Serialize + DeserializeOwned;
 
     /// The blinded response type which results from an eval on a blinded message and plaintext tag.
     type BlindResp: Serialize + DeserializeOwned;
-
-    /// The unblinded response type which results from unblinding a blinded response
-    type Resp: Serialize + DeserializeOwned;
 
     /// The partial response type
     type PartialResp: Serialize + DeserializeOwned; 
@@ -58,7 +53,7 @@ pub trait POPRFScheme: Scheme {
         resp: &Self::BlindResp,
     ) -> Result<Vec<u8>, Self::Error>; 
 
-    /// Partially signs a message with a share of the private key.
+    /// Evaluates the POPRF over a message and tag with a share of the private key.
     fn partial_eval(
         private: &Share<Self::Private>,
         tag: &[u8],

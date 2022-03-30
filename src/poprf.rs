@@ -96,7 +96,7 @@ use super::*;
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
-            let mut z = Self::Private::new();
+            let z = Self::Private::new();
             //z.map(&concatenate)?;
 
             // s1 = v1 - y * z
