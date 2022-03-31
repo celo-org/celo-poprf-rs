@@ -159,3 +159,25 @@ where
         Ok(res_hash)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use threshold_bls::curve::bls12377::PairingCurve as bls377;
+    use threshold_bls::curve::bls12377::{G1Curve, G2Curve};
+    use crate::poprf::Scheme;
+    use crate::api::POPRFScheme;
+
+    /// Public Keys and messages on G2, tags on G1.
+    type G2Scheme = crate::poprf::G2Scheme<bls377>;
+
+    #[test]
+    fn blind_and_unblind() {
+        let mut rng = rand::thread_rng(); 
+        let (private, public) = G2Scheme::keypair(&mut rng);
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
+        let result = G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
+    }
+}
