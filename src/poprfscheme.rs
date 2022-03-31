@@ -230,4 +230,26 @@ mod tests {
         let blind_partial_resp = G2Scheme::blind_partial_eval(&private_key, tag.as_bytes(), &blindmsg).unwrap();
         let result = G2Scheme::unblind_partial_resp(&public, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
     }
+
+    #[test]
+    fn dist_poprf() {
+        let mut rng = rand::thread_rng();
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let n = 3;
+        let t = 3;
+        let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t-1, &mut rng);
+        let public = private.commit::<<G2Scheme as Scheme>::Public>();
+        let public_key = public.public_key();
+        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::BlindPartialResp>::new();
+        for i in 0..n {
+            let (key, _) = G2Scheme::keypair(&mut rng);
+            let partial_key: Share<<G2Scheme as Scheme>::Private> = Share { private: private.get(i), index: i };
+            let partial_resp = G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
+            partial_resps.push(partial_resp);
+        }
+        let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
+        let result = G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+    }
 }
