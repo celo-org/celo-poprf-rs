@@ -18,7 +18,7 @@ type Result<T> = std::result::Result<T, JsValue>;
 // User -> Library
 ///////////////////////////////////////////////////////////////////////////
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = blindMsg)]
 /// Given a message and a seed, it will blind it and return the blinded message
 ///
 /// * message: A cleartext message which you want to blind
@@ -46,7 +46,7 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> BlindedMessage {
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = unblindResp)]
 /// Given a blinded evaluation response, the blinding_factor from when the message was blinded, a
 /// public key and a tag, it unblinds and verifies the evaluation, returning the result.
 ///
@@ -225,7 +225,7 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
         .map_err(|err| JsValue::from_str(&format!("could not aggregate evaluations: {}", err)))
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(js_name = blindAggregate)]
 /// Aggregates a flattened vector of blind partial evaluations to a single blind threshold
 /// evaluation.
 ///

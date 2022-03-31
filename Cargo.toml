@@ -1,5 +1,5 @@
 [package]
-name = "celo-poprf-rs"
+name = "poprf"
 version = "0.1.0"
 edition = "2021"
 
