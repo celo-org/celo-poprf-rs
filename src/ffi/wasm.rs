@@ -30,20 +30,20 @@ type Result<T> = std::result::Result<T, JsValue>;
 /// # Safety
 ///
 /// - If the same seed and message is used twice, the blinded result WILL be the same.
-pub fn blind_msg(message: &[u8], seed: &[u8]) -> BlindedMessage {
-    // convert the seed to randomness
+pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
+    // Create a PRNG instanciated with the given seed and message.
     let mut rng = get_rng(&[message, seed]);
 
-    // blind the message with this randomness
-    // DO NOT MERGE(victor): Should the error here be handled or is it OK to panic? I can't think
-    // of any reason that this should fail under normal circumstances.
-    let (blinding_factor, blinded_message) = POPRF::blind_msg(message, &mut rng).unwrap();
+    // Blind the message with this randomness.
+    let (blinding_factor, blinded_message) = POPRF::blind_msg(message, &mut rng).map_err(|err| {
+        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+    })?;
 
-    // return the message and the blinding_factor used for blinding
-    BlindedMessage {
+    // return the message and the blinding_factor used for blinding.
+    Ok(BlindedMessage {
         message: blinded_message,
         blinding_factor,
-    }
+    })
 }
 
 #[wasm_bindgen(js_name = unblindResp)]
