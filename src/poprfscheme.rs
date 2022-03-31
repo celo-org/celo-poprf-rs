@@ -165,7 +165,7 @@ mod tests {
     use threshold_bls::curve::bls12377::PairingCurve as bls377;
     use threshold_bls::curve::bls12377::{G1Curve, G2Curve};
     use crate::poprf::Scheme;
-    use crate::poprfscheme::Share;
+    use crate::poprfscheme::{Share, Poly};
     use crate::api::POPRFScheme;
 
     /// Public Keys and messages on G2, tags on G1.
@@ -197,5 +197,37 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn unblind_partial_wrong_key() {
+        let mut rng = rand::thread_rng();
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let n = 3;
+        let t = 3;
+        let (private, public) = G2Scheme::keypair(&mut rng);
+        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let partial_key = Share{ private: private, index: 1 }; 
+        let blind_partial_resp = G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
+        let public_poly = Poly::<<G2Scheme as Scheme>::Public>::new_from(t-1, &mut rng);
+        let result = G2Scheme::unblind_partial_resp(&public_poly, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
+    }
+
+    #[test]
+    fn unblind_partial() {
+        let mut rng = rand::thread_rng();
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let n = 3;
+        let t = 3;
+        let index = 1;
+        let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t-1, &mut rng);
+        let public = private.commit::<<G2Scheme as Scheme>::Public>();
+        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let private_key = Share{ private: private.get(index), index: index }; 
+        let blind_partial_resp = G2Scheme::blind_partial_eval(&private_key, tag.as_bytes(), &blindmsg).unwrap();
+        let result = G2Scheme::unblind_partial_resp(&public, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
     }
 }
