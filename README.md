@@ -33,7 +33,7 @@ assumption that the client holds the message and the server holds the private ke
 both client and server are represented.
 
 ```typescript
-import '@celo/poprf'
+import * as poprf from '@celo/poprf'
 import 'crypto'
 
 const message = Buffer.from("message")
