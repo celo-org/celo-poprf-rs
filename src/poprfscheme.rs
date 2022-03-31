@@ -165,6 +165,7 @@ mod tests {
     use threshold_bls::curve::bls12377::PairingCurve as bls377;
     use threshold_bls::curve::bls12377::{G1Curve, G2Curve};
     use crate::poprf::Scheme;
+    use crate::poprfscheme::Share;
     use crate::api::POPRFScheme;
 
     /// Public Keys and messages on G2, tags on G1.
@@ -179,5 +180,22 @@ mod tests {
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
         let result = G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
+    }
+
+    #[test]
+    fn aggregate() {
+        let mut rng = rand::thread_rng();
+        let n: u32 = 3;
+        let t: usize = 3;
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::PartialResp>::new();
+        for i in 0..n {
+            let (key, _) = G2Scheme::keypair(&mut rng);
+            let partial_key: Share<<G2Scheme as Scheme>::Private> = Share { private: key, index: i };
+            let partial_resp = G2Scheme::partial_eval(&partial_key, tag.as_bytes(), msg.as_bytes()).unwrap();
+            partial_resps.push(partial_resp);
+        }
+        let result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
     }
 }
