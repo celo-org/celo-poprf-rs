@@ -1,6 +1,9 @@
 //! # BLS12-377 WASM Bindings for the POPRF
 use wasm_bindgen::prelude::*;
 
+#[cfg(feature = "console_error_panic_hook")]
+use console_error_panic_hook;
+
 use blake2::{Blake2s256, Digest};
 use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
@@ -13,6 +16,13 @@ use crate::{
 };
 
 type Result<T> = std::result::Result<T, JsValue>;
+
+// If the console.err panic hook is included, initialize it exactly once.
+// init_panic_hook is called at the top of every public function.
+fn init_panic_hook() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+}
 
 ///////////////////////////////////////////////////////////////////////////
 // User -> Library
@@ -31,6 +41,8 @@ type Result<T> = std::result::Result<T, JsValue>;
 ///
 /// - If the same seed and message is used twice, the blinded result WILL be the same.
 pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
+    init_panic_hook();
+
     // Create a PRNG instanciated with the given seed and message.
     let mut rng = get_rng(&[message, seed]);
 
@@ -41,7 +53,7 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
 
     // return the message and the blinding_factor used for blinding.
     Ok(BlindedMessage {
-        message: blinded_message,
+        blinded_message,
         blinding_factor,
     })
 }
@@ -65,6 +77,8 @@ pub fn unblind_resp(
     tag: &[u8],
     blinded_resp_buf: &[u8],
 ) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     let public_key: PublicKey = bincode::deserialize(public_key_buf)
         .map_err(|err| JsValue::from_str(&format!("could not deserialize public key {}", err)))?;
 
@@ -94,6 +108,8 @@ pub fn unblind_resp(
 /// - If the private key fails to deserialize.
 /// - If the evaluation fails.
 pub fn eval(private_key_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     let private_key: PrivateKey = bincode::deserialize(private_key_buf)
         .map_err(|err| JsValue::from_str(&format!("could not deserialize private key {}", err)))?;
 
@@ -115,6 +131,8 @@ pub fn blind_eval(
     tag: &[u8],
     blinded_message_buf: &[u8],
 ) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     let private_key: PrivateKey = bincode::deserialize(private_key_buf)
         .map_err(|err| JsValue::from_str(&format!("could not deserialize private key {}", err)))?;
 
@@ -141,6 +159,8 @@ pub fn blind_eval(
 /// NOTE: This method must NOT be called with a PrivateKey which is not generated via a
 /// secret sharing scheme.
 pub fn partial_eval(share_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     let share: Share<PrivateKey> = bincode::deserialize(share_buf).map_err(|err| {
         JsValue::from_str(&format!("could not deserialize private key share {}", err))
     })?;
@@ -169,6 +189,8 @@ pub fn blind_partial_eval(
     tag: &[u8],
     blinded_message_buf: &[u8],
 ) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     let share: Share<PrivateKey> = bincode::deserialize(share_buf).map_err(|err| {
         JsValue::from_str(&format!("could not deserialize private key share {}", err))
     })?;
@@ -211,6 +233,8 @@ pub fn blind_partial_eval(
 /// - If any of the inputs fail to deserialize.
 /// - If the aggregation fails.
 pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     // Break the flattened vector to and deserialize the chunks in partial evaluations.
     let evaluations: Vec<PartialResp> = evaluations_buf
         .chunks(PARTIAL_RESPONSE_LENGTH)
@@ -248,6 +272,8 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
 /// - If any of the inputs fail to deserialize.
 /// - If the aggregation fails.
 pub fn blind_aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Result<Vec<u8>> {
+    init_panic_hook();
+
     // Break the flattened vector to and deserialize the chunks in blind partial evaluations.
     let blinded_evaluations: Vec<BlindPartialResp> = blinded_evaluations_buf
         .chunks(BLIND_PARTIAL_RESPONSE_LENGTH)
@@ -280,6 +306,8 @@ pub fn blind_aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Resu
 /// WARNING: This is a helper function for local testing of the library. Do not use
 /// in production, unless you trust the person that generated the keys.
 pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Keys {
+    init_panic_hook();
+
     let mut rng = get_rng(&[seed]);
     let private = Poly::<PrivateKey>::new_from(t - 1, &mut rng);
     let shares = (0..n)
@@ -302,18 +330,18 @@ pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Keys {
 /// A blinded message along with the blinding_factor used to produce it
 pub struct BlindedMessage {
     /// The resulting blinded message.
-    message: <POPRF as POPRFScheme>::BlindMsg,
+    blinded_message: BlindMsg,
     /// The blinding_factor which was used to generate the blinded message. This will be used
     /// to unblind the signature received on the blinded message to a valid signature
     /// on the unblinded message.
-    blinding_factor: <POPRF as POPRFScheme>::Token,
+    blinding_factor: Token,
 }
 
 #[wasm_bindgen]
 impl BlindedMessage {
-    #[wasm_bindgen(getter)]
-    pub fn message(&self) -> Vec<u8> {
-        bincode::serialize(&self.message).expect("could not serialize blinded message")
+    #[wasm_bindgen(getter, js_name = blindedMessage)]
+    pub fn blinded_message(&self) -> Vec<u8> {
+        bincode::serialize(&self.blinded_message).expect("could not serialize blinded message")
     }
 
     #[wasm_bindgen(getter, js_name = blindingFactor)]
@@ -350,6 +378,8 @@ impl Keypair {
 /// Generates a single private key from the provided seed.
 #[wasm_bindgen]
 pub fn keygen(seed: &[u8]) -> Keypair {
+    init_panic_hook();
+
     let mut rng = get_rng(&[seed]);
     let (private, public) = POPRF::keypair(&mut rng);
     Keypair { private, public }

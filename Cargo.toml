@@ -15,8 +15,9 @@ name = "poprf"
 bincode = "1.2.1"
 byteorder = "1.4.3"
 ark-bls12-377 = { version = "0.3.0" }
-ark-ec = { version = "0.3.0", features = [ "std", "parallel"] }
-ark-ff = { version = "0.3.0", features = [ "std", "parallel"] }
+ark-ec = { version = "0.3.0", features = [ "std" ] }
+ark-ff = { version = "0.3.0", features = [ "std" ] }
+ark-crypto-primitives = { version = "0.3.0", features = [ "std" ] }
 ark-serialize = { version = "0.3.0", features = [ "derive" ] }
 ark-std = { version = "0.3.0" }
 bls-crypto = { git = "https://github.com/celo-org/bls-crypto" }
@@ -24,7 +25,7 @@ hex = "0.4.3"
 rand_core = { version = "0.6.3", default-features = false }
 log = "0.4.14"
 rand = "0.8.5"
-serde = {version = "1.0.106", features = ["derive"] }
+serde = { version = "1.0.106", features = ["derive"] }
 
 # Required for WASM interface
 blake2 = { version = "0.10", default-features = false, optional = true }
@@ -32,10 +33,23 @@ getrandom = { version = "0.2", default-features = false, optional = true }
 rand_chacha = { version = "0.3.1", default-features = false, optional = true }
 wasm-bindgen = { version = "0.2.60", optional = true }
 
-#threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
-threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", rev = "823bc050e505404811f1f197440deadb31368060" }
+# The `console_error_panic_hook` crate provides better debugging of panics by
+# logging them with `console.error`. This is great for development, but requires
+# all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
+# code size when deploying.
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# TODO: Once that branch is merged into `master`, change the targeted branch.
+threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
 thiserror = "1.0.15"
 
 
 [features]
+# Build WASM bindings for use in JS environments
 wasm = ["wasm-bindgen", "getrandom/js", "blake2", "rand_chacha"]
+
+# Include a panic hook for printing panic messages to the JS console.
+wasm-debug = ["wasm", "console_error_panic_hook"]
+
+# Enable parallel computation in arkworks code. Cannot be used with WASM.
+parallel = ["ark-ec/parallel", "ark-ff/parallel", "bls-crypto/parallel", "threshold-bls/parallel"]

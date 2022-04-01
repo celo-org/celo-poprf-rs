@@ -43,11 +43,11 @@ const tag = Buffer.from("tag")
 const keypair = poprf.keygen(crypto.randomBytes(32))
 
 // Client: Blind the message to send to the server.
-const blindMessage = poprf.blindMsg(message, crypto.randomBytes(32))
+const { blindedMessage, blindingFactor } = poprf.blindMsg(message, crypto.randomBytes(32))
 
 // Server: Evaluate the POPRF over the blinded message and tag.
-const response = poprf.blindEval(keypair.privateKey, tag, blindMessage.message)
+const response = poprf.blindEval(keypair.privateKey, tag, blindedMessage)
 
 // Client: Unblind and verify the evaluation returned from the server.
-const result = poprf.unblindResp(keypair.publicKey, blindMessage.blindingFactor, tag, response)
+const result = poprf.unblindResp(keypair.publicKey, blindingFactor, tag, response)
 ```
