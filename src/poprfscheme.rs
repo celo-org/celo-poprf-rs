@@ -330,7 +330,9 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
-        let _result =
+        let agg_result =
             G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+        let agg_key = private.get(0);
+        let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes());
     }
 }
