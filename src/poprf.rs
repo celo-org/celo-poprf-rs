@@ -1,5 +1,6 @@
 //use ark_ec::hashing::field_hashers::DefaultFieldHasher;
 //use rand::prelude::*;
+use crate::hash_to_field::HashToField;
 use crate::POPRFError;
 use rand::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
@@ -95,9 +96,8 @@ pub mod poprf {
             let b_ser = bincode::serialize(&b)?;
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
-            // TODO: implement hash to scalar field
-            let z = Self::Private::new();
-            //z.map(&concatenate)?;
+            // let z = Self::Private::new();
+            let z = HashToField::hash_to_field(&[], &concatenate).unwrap();
 
             // s1 = v1 - y * z
             let mut s1 = v1;
@@ -133,7 +133,7 @@ pub mod poprf {
             let v_ser = bincode::serialize(&v)?;
             let a_ser = bincode::serialize(&a)?;
             let b_ser = bincode::serialize(&b)?;
-            let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
+            let concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
             let h = Self::Private::new();
