@@ -260,7 +260,9 @@ where
         let mut y_B = B.clone();
         y_B.mul(&c_inv);
         y_B.add(&C::pair(&h, &vdc));
-        assert_eq!(y_A, y_B);
+        if y_A != y_B {
+            return Err(POPRFError::VerifyError);
+        }
 
         Ok(y_A)
     }

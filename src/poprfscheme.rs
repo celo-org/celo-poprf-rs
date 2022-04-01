@@ -3,7 +3,6 @@ use crate::poprf::poprf::POPRF;
 use crate::POPRFError;
 use bls_crypto::hashers::{DirectHasher, Hasher};
 use rand_core::RngCore;
-use serde::Serialize;
 use std::fmt::Debug;
 use threshold_bls::{
     group::{Element, Scalar},
@@ -11,17 +10,17 @@ use threshold_bls::{
     sig::Share,
 };
 
+const HASH_OUTPUT_BITS: usize = 256;
+
 impl<C> POPRFScheme for C
 where
     C: POPRF + Debug,
 {
     type Error = POPRFError;
     type Token = (C::Private, C::Private, C::Private);
-    type Proof = (C::Private, C::Private, C::Private);
-    type BlindMsg = (Self::Proof, C::Public, C::Public);
+    type BlindMsg = (C::Private, C::Private, C::Private, C::Public, C::Public);
     type BlindResp = (C::Evaluation, C::Evaluation);
-    type Resp = C::Evaluation;
-    type PartialResp = Share<Self::Resp>;
+    type PartialResp = Share<C::Evaluation>;
     type BlindPartialResp = Share<Self::BlindResp>;
 
     fn blind_msg<R: RngCore>(
@@ -41,8 +40,7 @@ where
         )
         .unwrap();
         let token = (r, c, d);
-        let proof = (z, s_1, s_2);
-        let blmsg = (proof, a, b);
+        let blmsg = (z, s_1, s_2, a, b);
         Ok((token, blmsg))
     }
 
@@ -52,8 +50,7 @@ where
         tag: &[u8],
         msg: &Self::BlindMsg,
     ) -> Result<Self::BlindResp, Self::Error> {
-        let (pi, a, b) = msg;
-        let (z, s_1, s_2) = pi;
+        let (z, s_1, s_2, a, b) = msg;
         C::verify(&mut a.clone(), &mut b.clone(), &z, &s_1, &s_2)?
             .then(|| ())
             .ok_or(POPRFError::VerifyError)?;
@@ -73,8 +70,8 @@ where
         let res = C::finalize(public, A, B, tag, r, c, d)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
-            .hash(&[], &serialized[..], 256)
-            .map_err(|e| POPRFError::HashingError)?;
+            .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
+            .map_err(|_e| POPRFError::HashingError)?;
 
         Ok(res_hash)
     }
@@ -131,6 +128,20 @@ where
         Ok((A, B))
     }
 
+    fn eval(
+        private: &Self::Private,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Vec<u8>, Self::Error> {
+        let res = C::eval(&private, tag, msg)?;
+        let serialized = bincode::serialize(&res)?;
+        let res_hash = DirectHasher
+            .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
+            .map_err(|_e| POPRFError::HashingError)?;
+
+        Ok(res_hash)
+    }
+
     fn partial_eval(
         private: &Share<Self::Private>,
         tag: &[u8],
@@ -154,8 +165,8 @@ where
         let res = C::aggregate(threshold, &vec)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
-            .hash(&[], &serialized[..], 256)
-            .map_err(|e| POPRFError::HashingError)?;
+            .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
+            .map_err(|_e| POPRFError::HashingError)?;
         Ok(res_hash)
     }
 }
@@ -163,7 +174,6 @@ where
 #[cfg(test)]
 mod tests {
     use threshold_bls::curve::bls12377::PairingCurve as bls377;
-    use threshold_bls::curve::bls12377::{G1Curve, G2Curve};
     use threshold_bls::group::Element;
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Share, Poly};
@@ -180,7 +190,7 @@ mod tests {
         let tag = "Bob";
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
-        let result = G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
+        let _result = G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
     }
 
     #[test]
@@ -194,14 +204,13 @@ mod tests {
         let tag = "Bob";
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
-        let result = G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
+        let _result = G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
     }
 
     // TODO: Test against fixed output
     #[test]
     fn aggregate() {
         let mut rng = rand::thread_rng();
-        let n: u32 = 5;
         let t: usize = 3;
         let msg = "Hello World!";
         let tag = "Bob";
@@ -212,15 +221,14 @@ mod tests {
             let partial_resp = G2Scheme::partial_eval(&partial_key, tag.as_bytes(), msg.as_bytes()).unwrap();
             partial_resps.push(partial_resp);
         }
-        let result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+        let _result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
     }
 
     #[test]
     #[should_panic]
     fn aggregate_not_enough_shares() {
         let mut rng = rand::thread_rng();
-        let n: u32 = 5;
-        let t: usize = 3;
+        let t: usize = 5;
         let msg = "Hello World!";
         let tag = "Bob";
         let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::PartialResp>::new();
@@ -230,7 +238,7 @@ mod tests {
             let partial_resp = G2Scheme::partial_eval(&partial_key, tag.as_bytes(), msg.as_bytes()).unwrap();
             partial_resps.push(partial_resp);
         }
-        let result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+        let _result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
     }
 
     // TODO: Test against fixed output
@@ -239,15 +247,14 @@ mod tests {
         let mut rng = rand::thread_rng();
         let msg = "Hello World!";
         let tag = "Bob";
-        let n = 5;
-        let t = 3;
+        let t = 5;
         let index = 1;
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t-1, &mut rng);
         let public = private.commit::<<G2Scheme as Scheme>::Public>();
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let private_key = Share{ private: private.get(index), index: index }; 
         let blind_partial_resp = G2Scheme::blind_partial_eval(&private_key, tag.as_bytes(), &blindmsg).unwrap();
-        let result = G2Scheme::unblind_partial_resp(&public, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
+        let _result = G2Scheme::unblind_partial_resp(&public, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
     }
 
     #[test]
@@ -256,14 +263,14 @@ mod tests {
         let mut rng = rand::thread_rng();
         let msg = "Hello World!";
         let tag = "Bob";
-        let n = 5;
-        let t = 3;
-        let (private, public) = G2Scheme::keypair(&mut rng);
+        let t = 5;
+        let idx = 1;
+        let (private, _) = G2Scheme::keypair(&mut rng);
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
-        let partial_key = Share{ private: private, index: 1 }; 
+        let partial_key = Share{ private: private, index: idx }; 
         let blind_partial_resp = G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
         let public_poly = Poly::<<G2Scheme as Scheme>::Public>::new_from(t-1, &mut rng);
-        let result = G2Scheme::unblind_partial_resp(&public_poly, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
+        let _result = G2Scheme::unblind_partial_resp(&public_poly, &token, tag.as_bytes(), &blind_partial_resp).unwrap();
     }
 
     // TODO: Test against fixed output
@@ -272,8 +279,7 @@ mod tests {
         let mut rng = rand::thread_rng();
         let msg = "Hello World!";
         let tag = "Bob";
-        let n = 5;
-        let t = 3;
+        let t = 5;
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t-1, &mut rng);
         let public = private.commit::<<G2Scheme as Scheme>::Public>();
         let public_key = public.public_key();
@@ -285,6 +291,6 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
-        let result = G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+        let _result = G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
     }
 }

@@ -5,7 +5,6 @@ mod hash_to_field;
 mod poprf;
 mod poprfscheme;
 mod prf;
-use bls_crypto::BLSError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
