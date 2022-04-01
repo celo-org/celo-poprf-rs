@@ -13,6 +13,9 @@ pub enum POPRFError {
     #[error("could not hash to curve")]
     HashingError,
 
+    #[error("could not hash to scalar field")]
+    HashError(#[from] crate::hash_to_field::HashError),
+
     #[error("could not serialize")]
     SerializationError(#[from] Box<bincode::ErrorKind>),
 
