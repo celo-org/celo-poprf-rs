@@ -4,7 +4,10 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
 
 // Export polynomial library components used here so the caller may use them.
-pub use threshold_bls::{poly::{Poly, Idx, Eval}, sig::Share};
+pub use threshold_bls::{
+    poly::{Eval, Idx, Poly},
+    sig::Share,
+};
 
 pub trait PRFScheme: Scheme {
     type Error: Error;
@@ -51,11 +54,7 @@ pub trait POPRFScheme: Scheme {
         resp: &Self::BlindResp,
     ) -> Result<Vec<u8>, Self::Error>;
 
-    fn eval(
-        private: &Self::Private,
-        tag: &[u8],
-        msg: &[u8],
-    ) -> Result<Vec<u8>, Self::Error>;
+    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error>;
 
     /// Evaluates the POPRF over a message and tag with a share of the private key.
     fn partial_eval(
