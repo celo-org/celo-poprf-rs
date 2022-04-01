@@ -10,3 +10,9 @@ Cargo.lock
 **/*.rs.bk
 
 *.swp
+
+# Useful to install the generated WASM package in local directory.
+# If done, those files should be ignored.
+/node_modules/
+/package-lock.json
+/package.json

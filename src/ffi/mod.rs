@@ -1,12 +1,7 @@
-/*#[cfg(feature = "wasm")]
+#[cfg(feature = "wasm")]
 pub mod wasm;
 
-use crate::{poly::Idx, poprf::POPRF, traits::Scheme};
+use crate::{BlindPartialResp, PartialResp};
 
-pub type PublicKey = <POPRF as Scheme>::Public;
-pub type PrivateKey = <POPRF as Scheme>::Private;
-
-pub const VEC_LENGTH: usize = 8;
-pub const SIGNATURE_LEN: usize = 48;
-pub const PARTIAL_SIG_LENGTH: usize =
-    VEC_LENGTH + SIGNATURE_LEN + std::mem::size_of::<Idx>();*/
+pub(crate) const PARTIAL_RESPONSE_LENGTH: usize = std::mem::size_of::<PartialResp>();
+pub(crate) const BLIND_PARTIAL_RESPONSE_LENGTH: usize = std::mem::size_of::<BlindPartialResp>();

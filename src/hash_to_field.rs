@@ -1,6 +1,5 @@
 // use ark_bls12_377;
 // use ark_ec::PairingEngine;
-use ark_ff::fields::Field;
 use ark_std::{end_timer, start_timer};
 use bls_crypto::{hashers::DirectHasher, Hasher};
 use byteorder::WriteBytesExt;

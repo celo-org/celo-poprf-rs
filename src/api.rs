@@ -2,7 +2,9 @@ use crate::poprf::Scheme;
 use rand_core::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
-use threshold_bls::{poly::Poly, sig::Share};
+
+// Export polynomial library components used here so the caller may use them.
+pub use threshold_bls::{poly::{Poly, Idx, Eval}, sig::Share};
 
 pub trait PRFScheme: Scheme {
     type Error: Error;
