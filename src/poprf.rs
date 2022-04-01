@@ -1,7 +1,8 @@
 //use ark_ec::hashing::field_hashers::DefaultFieldHasher;
 //use rand::prelude::*;
-use crate::hash_to_field::HashToField;
+use crate::hash_to_field::TryAndIncrement;
 use crate::POPRFError;
+use bls_crypto::hashers::DirectHasher;
 use rand::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
@@ -37,7 +38,9 @@ pub trait Scheme: Debug {
 }
 
 pub mod poprf {
+    use std::hash::Hasher;
     use super::*;
+
     pub trait POPRF: Scheme {
         fn req<R: RngCore>(
             msg: &[u8],
@@ -96,8 +99,8 @@ pub mod poprf {
             let b_ser = bincode::serialize(&b)?;
             let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
-            // let z = Self::Private::new();
-            let z = HashToField::hash_to_field(&[], &concatenate).unwrap();
+            let hasher = TryAndIncrement::new(&DirectHasher);
+            let z = hasher.hash_to_field(&[], &concatenate)?;
 
             // s1 = v1 - y * z
             let mut s1 = v1;
@@ -136,7 +139,8 @@ pub mod poprf {
             let concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             // TODO: implement hash to scalar field
-            let h = Self::Private::new();
+            let hasher = TryAndIncrement::new(&DirectHasher);
+            let h = hasher.hash_to_field(&[], &concatenate)?;
 
             Ok(*z == h)
         }

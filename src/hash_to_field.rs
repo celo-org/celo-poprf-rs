@@ -1,13 +1,13 @@
 // use ark_bls12_377;
 // use ark_ec::PairingEngine;
 use ark_std::{end_timer, start_timer};
-use bls_crypto::{hashers::DirectHasher, Hasher};
+use bls_crypto::{BLSError, Hasher};
 use byteorder::WriteBytesExt;
 use log::error;
 use log::trace;
-use thiserror::Error;
-use threshold_bls::group::{Element, Scalar};
 use std::marker::PhantomData;
+use thiserror::Error;
+use threshold_bls::group::Scalar;
 
 const NUM_TRIES: u8 = 255;
 
@@ -43,19 +43,22 @@ pub struct TryAndIncrement<'a, H, F> {
 
 impl<'a, H, F> TryAndIncrement<'a, H, F>
 where
-    H: Hasher<Error = HashError>,
+    H: Hasher<Error = BLSError>,
     F: Scalar,
 {
     /// Instantiates a new Try-and-increment hasher with the provided hashing method
     /// and curve parameters based on the type
     pub fn new(h: &'a H) -> Self {
-        TryAndIncrement { hasher: h, params: PhantomData  }
+        TryAndIncrement {
+            hasher: h,
+            params: PhantomData,
+        }
     }
 }
 
 impl<'a, H, F> HashToField for TryAndIncrement<'a, H, F>
 where
-    H: Hasher<Error = HashError>,
+    H: Hasher<Error = BLSError>,
     F: Scalar<RHS = F>,
 {
     type Output = F;
@@ -69,7 +72,8 @@ where
         for c in 0..NUM_TRIES {
             (&mut counter[..]).write_u8(c as u8)?;
             let candidate_hash =
-                DirectHasher.hash(domain, &[&counter, message].concat(), hash_bytes)?;
+                self.hasher
+                    .hash(domain, &[&counter, message].concat(), hash_bytes)?;
 
             if let Some(scalar_field) =
                 Self::Output::from_random_bytes(&candidate_hash[..num_bytes])
