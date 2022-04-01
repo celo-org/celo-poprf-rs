@@ -47,9 +47,10 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
     let mut rng = get_rng(&[message, seed]);
 
     // Blind the message with this randomness.
-    let (blinding_factor, blinded_message) = POPRF::blind_msg(message, &mut rng).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
-    })?;
+    let (blinding_factor, blinded_message) =
+        POPRF::blind_msg(message, &mut rng).map_err(|err| {
+            JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+        })?;
 
     // return the message and the blinding_factor used for blinding.
     Ok(BlindedMessage {

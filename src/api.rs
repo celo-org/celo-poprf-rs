@@ -4,16 +4,10 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::error::Error;
 
 // Export polynomial library components used here so the caller may use them.
-pub use threshold_bls::{poly::{Poly, Idx, Eval}, sig::Share};
-
-pub trait PRFScheme: Scheme {
-    type Error: Error;
-
-    /// Evaluates the PRF on the given plaintext tag and message input.
-    ///
-    /// Will result in the same value as calling `blind_msg`, `blind_eval`, `unblind_resp` in sequence.
-    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error>;
-}
+pub use threshold_bls::{
+    poly::{Eval, Idx, Poly},
+    sig::Share,
+};
 
 pub trait POPRFScheme: Scheme {
     type Error: Error;
@@ -21,16 +15,8 @@ pub trait POPRFScheme: Scheme {
     /// The blinding factor which will be used to unblind and verify the message.
     type Token: Serialize + DeserializeOwned;
 
-    // TODO: Does not really need to be part of the public interface. Can it be removed?
-    /// Proof included as part of BlindMsg to show that the message was created correctly.
-    type Proof: Serialize + DeserializeOwned;
-
     /// The blinded message type which is created by the client.
     type BlindMsg: Serialize + DeserializeOwned;
-
-    // TODO: Does not really need to be part of the public interface. Can it be removed?
-    /// Unblinded and unhashed evaluation response.
-    type Resp: Serialize + DeserializeOwned;
 
     /// The blinded response type which results from an eval on a blinded message and plaintext tag.
     type BlindResp: Serialize + DeserializeOwned;
@@ -58,6 +44,8 @@ pub trait POPRFScheme: Scheme {
         tag: &[u8],
         resp: &Self::BlindResp,
     ) -> Result<Vec<u8>, Self::Error>;
+
+    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error>;
 
     /// Evaluates the POPRF over a message and tag with a share of the private key.
     fn partial_eval(
