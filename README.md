@@ -20,11 +20,11 @@ get the final output. More details are available in the specification below.
 <!-- TODO(victor) Replace this link with a link to the CIP when published as a CIP -->
 #### [Specification](https://clabsco.notion.site/POPRF-Cryptography-Construction-493f1099460940f8a5d7dee4c78b4442)
 
-The specification linked above is also availble in this repository as [specification.md](./specification.md).
+The specification linked above is also available in this repository as [specification.md](./specification.md).
 
 ### Applications
 
-Some application os (P)OPRF functions include:
+Some applications of (P)OPRFs include:
 
 - Password hardening
   - [Pythia]
