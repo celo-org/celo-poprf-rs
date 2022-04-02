@@ -5,7 +5,9 @@ with evaluations that are verifiable by the client.
 
 Building upon the existing [BLS threshold signature based OPRF] implemented for use on Celo in
 [ODIS], this repository implements an extension to the [Pythia] POPRF specification to provide
-threshold computation and verification against a single pre-shared public key.
+threshold computation and verification against a single pre-shared public key. This construction is
+called Pith for its basis on Pythia and usage in the Celo PIN/Password Encrypted Account Recovery
+protocol [PEAR].
 
 At a high level, the POPRF is a protocol with a client and a service who collectively compute a keyed
 PRF (i.e. essentially a hash) over a tag input and a message input. The message input is secret to
@@ -83,8 +85,9 @@ const result = poprf.unblindResp(keypair.publicKey, blindingFactor, tag, respons
 <!-- Links -->
 [BLS threshold signature based OPRF]: https://github.com/celo-org/celo-threshold-bls-rs
 [ODIS]: https://docs.celo.org/celo-codebase/protocol/odis
-[Pythia]: https://eprint.iacr.org/2015/644.pdf
 [OPAQUE]: https://datatracker.ietf.org/doc/draft-irtf-cfrg-opaque/
-[WhatsApp E2EE Backups]: https://engineering.fb.com/2021/09/10/security/whatsapp-e2ee-backups/
+[PEAR]: https://docs.celo.org/celo-codebase/protocol/identity/encrypted-cloud-backup
 [Pretty Good Phone Privacy]: https://www.usenix.org/conference/usenixsecurity21/presentation/schmitt
 [Privacy Pass]: https://privacypass.github.io/
+[Pythia]: https://eprint.iacr.org/2015/644.pdf
+[WhatsApp E2EE Backups]: https://engineering.fb.com/2021/09/10/security/whatsapp-e2ee-backups/
