@@ -99,7 +99,6 @@ pub fn unblind_resp(
 // Service -> Library
 ///////////////////////////////////////////////////////////////////////////
 
-/* TODO: Once the POPRF implements the unblinded eval function, uncomment this.
 #[wasm_bindgen]
 /// Evaluates the POPRF over the plaintext message and tag with the provided private key and
 /// returns the evaluation.
@@ -117,7 +116,6 @@ pub fn eval(private_key_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8
     POPRF::eval(&private_key, tag, message)
         .map_err(|err| JsValue::from_str(&format!("could not produce evaluation: {}", err)))
 }
-*/
 
 #[wasm_bindgen(js_name = blindEval)]
 /// Evaluates the POPRF over the blinded message and plaintext tag with the provided private key
