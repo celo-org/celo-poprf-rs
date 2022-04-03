@@ -1,5 +1,3 @@
-//use ark_ec::hashing::field_hashers::DefaultFieldHasher;
-//use rand::prelude::*;
 use crate::hash_to_field::{HashToField, TryAndIncrement};
 use crate::POPRFError;
 use bls_crypto::hashers::DirectHasher;
