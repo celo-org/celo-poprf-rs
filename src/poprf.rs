@@ -10,6 +10,9 @@ use threshold_bls::{
     sig::Share,
 };
 
+/// 8-byte constant hashing domain for the proof of related query subprotocol.
+const NIZK_HASH_DOMAIN: &'static [u8] = b"PoRQH2FF";
+
 /// The `Scheme` trait contains the basic information of the groups over which the PRF operations
 /// takes places and a way to create a valid key pair.
 ///
@@ -113,7 +116,7 @@ pub mod poprf {
             let concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             let hasher = TryAndIncrement::new(&DirectHasher);
-            let z = hasher.hash_to_field(&[], &concatenate)?;
+            let z = hasher.hash_to_field(NIZK_HASH_DOMAIN, &concatenate)?;
 
             // s1 = v1 - y * z
             let s1 = {
@@ -165,7 +168,7 @@ pub mod poprf {
             let concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
             let hasher = TryAndIncrement::new(&DirectHasher);
-            let h = hasher.hash_to_field(&[], &concatenate)?;
+            let h = hasher.hash_to_field(NIZK_HASH_DOMAIN, &concatenate)?;
 
             Ok(*z == h)
         }
