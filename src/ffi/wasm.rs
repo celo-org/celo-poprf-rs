@@ -43,7 +43,7 @@ fn init_panic_hook() {
 pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
     init_panic_hook();
 
-    // Create a PRNG instanciated with the given seed and message.
+    // Create a PRNG instantiated with the given seed and message.
     let mut rng = get_rng(&[message, seed]);
 
     // Blind the message with this randomness.
@@ -66,7 +66,7 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
 /// * public_key: Public key against which the response should be verified.
 /// * blinding_factor: The blinding_factor used to blind the message.
 /// * tag: Message tag passed into the evaluation of the POPRF.
-/// * blinded_resp: A message which has been blinded or a blind signature.
+/// * blinded_resp: A blinded POPRF evaluation response over the message and tag.
 ///
 /// # Throws
 ///
@@ -93,6 +93,46 @@ pub fn unblind_resp(
 
     POPRF::unblind_resp(&public_key, &blinding_factor, tag, &blinded_resp)
         .map_err(|err| JsValue::from_str(&format!("could not unblind response {}", err)))
+}
+
+#[wasm_bindgen(js_name = unblindPartialResp)]
+/// Given a blinded partial evaluation response, the blinding_factor from when the message was
+/// blinded, a public key and a tag, it unblinds and verifies the evaluation, returning the partial
+/// response which can then be aggregated.
+///
+/// * polynomial: Public key polynomial against which the response should be verified.
+/// * blinding_factor: The blinding_factor used to blind the message.
+/// * tag: Message tag passed into the evaluation of the POPRF.
+/// * blinded_partial_resp: A blinded POPRF partial evaluation response over the message and tag.
+///
+/// # Throws
+///
+/// - If any of the inputs fail to deserialize.
+/// - If unblinding fails, including verification failure.
+pub fn unblind_partial_resp(
+    polynomial_buf: &[u8],
+    blinding_factor_buf: &[u8],
+    tag: &[u8],
+    blinded_partial_resp_buf: &[u8],
+) -> Result<Vec<u8>> {
+    init_panic_hook();
+
+    let polynomial: Poly<PublicKey> = bincode::deserialize(polynomial_buf)
+        .map_err(|err| JsValue::from_str(&format!("could not deserialize polynomial {}", err)))?;
+
+    let blinded_partial_resp: BlindPartialResp = bincode::deserialize(blinded_partial_resp_buf).map_err(|err| {
+        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+    })?;
+
+    let blinding_factor: Token = bincode::deserialize(blinding_factor_buf).map_err(|err| {
+        JsValue::from_str(&format!("could not deserialize blinding factor {}", err))
+    })?;
+
+    let result = POPRF::unblind_partial_resp(&polynomial, &blinding_factor, tag, &blinded_partial_resp)
+        .map_err(|err| JsValue::from_str(&format!("could not unblind response {}", err)))?;
+
+    bincode::serialize(&result)
+        .map_err(|err| JsValue::from_str(&format!("could not serialize result: {}", err)))
 }
 
 ///////////////////////////////////////////////////////////////////////////
