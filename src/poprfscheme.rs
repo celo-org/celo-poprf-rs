@@ -31,14 +31,7 @@ where
         let mut c_div_r = c.clone();
         let r_inv = r.inverse().ok_or(Self::Error::NoInverse).unwrap();
         c_div_r.mul(&r_inv);
-        let (z, s_1, s_2) = C::prove(
-            &mut a.clone(),
-            &b,
-            &mut c_div_r.clone(),
-            &mut d.clone(),
-            rng,
-        )
-        .unwrap();
+        let (z, s_1, s_2) = C::prove(a.clone(), &b, c_div_r.clone(), d.clone(), rng).unwrap();
         let token = (r, c, d);
         let blmsg = (z, s_1, s_2, a, b);
         Ok((token, blmsg))
@@ -51,7 +44,7 @@ where
         msg: &Self::BlindMsg,
     ) -> Result<Self::BlindResp, Self::Error> {
         let (z, s_1, s_2, a, b) = msg;
-        C::verify(&mut a.clone(), &mut b.clone(), &z, &s_1, &s_2)?
+        C::verify(a.clone(), b.clone(), &z, &s_1, &s_2)?
             .then(|| ())
             .ok_or(POPRFError::VerifyError)?;
         let (A, B) = C::blind_ev(private, tag, a, b)?;
