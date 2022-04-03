@@ -1,7 +1,8 @@
 # Pith POPRF
 
 > :warning: Functionality in this repository has not undergone detailed security review. It should
-> be used with caution.
+> be used with caution. It may contain unknown vulnerabilities and based on results of further
+> review, it may be changed in backwards incompatible ways.
 
 This repository implements a threshold-computable partially-oblivious pseudo-random function (POPRF)
 with evaluations that are verifiable by the client.
