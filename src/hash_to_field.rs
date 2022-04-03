@@ -34,7 +34,6 @@ pub trait HashToField {
 
 /// A try-and-increment method for hashing to G1 and G2. See page 521 in
 /// https://link.springer.com/content/pdf/10.1007/3-540-45682-1_30.pdf.
-// TODO: Make this work with any curve, not just bls377
 #[derive(Clone)]
 pub struct TryAndIncrement<'a, H, F> {
     hasher: &'a H,
@@ -108,11 +107,6 @@ mod tests {
     use crate::bls12_377::Scalar;
     use crate::hash_to_field::{HashToField, TryAndIncrement};
     use bls_crypto::hashers::DirectHasher;
-
-    const RNG_SEED: [u8; 16] = [
-        0x5d, 0xbe, 0x62, 0x59, 0x8d, 0x31, 0x3d, 0x76, 0x32, 0x37, 0xdb, 0x17, 0xe5, 0xbc, 0x06,
-        0x54,
-    ];
 
     #[test]
     fn test_hash_to_field() -> Result<(), Box<dyn std::error::Error>> {
