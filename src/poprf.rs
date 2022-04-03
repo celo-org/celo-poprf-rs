@@ -146,18 +146,21 @@ pub mod poprf {
             s2: &Self::Private,
         ) -> Result<bool, POPRFError> {
             // v = g2^s1 * a^s2 * b^z
-            let mut g2 = Self::Public::one();
-            g2.mul(&s1);
-            let mut as2 = a.clone();
-            as2.mul(&s2);
-            let mut bz = b.clone();
-            bz.mul(&z);
-            let mut v = g2.clone();
-            v.add(&as2);
-            v.add(&bz);
+            let v = {
+                let mut g2s1 = Self::Public::one();
+                g2s1.mul(&s1);
+                let mut as2 = a.clone();
+                as2.mul(&s2);
+                let mut bz = b.clone();
+                bz.mul(&z);
+                let mut v = g2s1;
+                v.add(&as2);
+                v.add(&bz);
+                v
+            };
 
             // Concatenate (g2 || v || a || b)
-            let g2_ser = bincode::serialize(&g2)?;
+            let g2_ser = bincode::serialize(&Self::Public::one())?;
             let v_ser = bincode::serialize(&v)?;
             let a_ser = bincode::serialize(&a)?;
             let b_ser = bincode::serialize(&b)?;
