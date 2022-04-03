@@ -75,10 +75,10 @@ pub mod poprf {
 
         // Prove(a, b, c/r, d)
         fn prove<R: RngCore>(
-            a: &mut Self::Public,
+            mut a: Self::Public,
             b: &Self::Public,
-            x: &mut Self::Private,
-            y: &mut Self::Private,
+            mut x: Self::Private,
+            mut y: Self::Private,
             rng: &mut R,
         ) -> Result<(Self::Private, Self::Private, Self::Private), POPRFError> {
             let v1 = Self::Private::rand(rng);
@@ -115,8 +115,8 @@ pub mod poprf {
         }
 
         fn verify(
-            a: &mut Self::Public,
-            b: &mut Self::Public,
+            mut a: Self::Public,
+            mut b: Self::Public,
             z: &Self::Private,
             s1: &Self::Private,
             s2: &Self::Private,
