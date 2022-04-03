@@ -30,8 +30,7 @@ pub trait HashToField {
     fn hash_to_field(&self, domain: &[u8], message: &[u8]) -> Result<Self::Output, HashError>;
 }
 
-/// A try-and-increment method for hashing to G1 and G2. See page 521 in
-/// https://link.springer.com/content/pdf/10.1007/3-540-45682-1_30.pdf.
+/// A try-and-increment method for hashing to scalar field
 #[derive(Clone)]
 pub struct TryAndIncrement<'a, H, F> {
     hasher: &'a H,
@@ -44,7 +43,7 @@ where
     F: Scalar,
 {
     /// Instantiates a new Try-and-increment hasher with the provided hashing method
-    /// and curve parameters based on the type
+    /// and field parameters based on the type
     pub fn new(h: &'a H) -> Self {
         TryAndIncrement {
             hasher: h,
