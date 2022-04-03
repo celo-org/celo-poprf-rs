@@ -110,20 +110,39 @@ mod tests {
 
     #[test]
     fn test_hash_to_field() -> Result<(), Box<dyn std::error::Error>> {
-        let expected_hash: Scalar = bincode::deserialize(&hex::decode(
-            "9a94a71f3bd2efcfca590a6c619164d7ddf5be648c7029e426c3ce30f4a63711",
-        )?)?;
-        println!(
-            "expected scalar: {}",
-            hex::encode(bincode::serialize(&expected_hash)?)
-        );
+        struct Case {
+            // 8-bytes personalization string.
+            domain: &'static [u8],
+            message: &'static [u8],
+            expected: &'static [u8],
+        }
 
-        let msg = b"Hash to field test message";
+        let cases = vec![
+            Case {
+                domain: b"H2FTEST1",
+                message: b"Hash to field test message",
+                expected: b"7a76c4b0e7af6d8db05a7f38f30f3aabba99fcc55cc62b8068a5eb3d81396d07",
+            },
+            Case {
+                domain: b"H2FTEST2",
+                message: b"Hash to field test message",
+                expected: b"6b5a6b198eb79c293db3bd95eb9ae59ca2da80e98e815d0462f6421eb81c4710",
+            },
+            Case {
+                domain: b"H2FTEST1",
+                message: b"Hash to field test alternative message",
+                expected: b"e848153119b3864d5853447b62f5358063f3c181ff2f035dd5ce8eb1708c3e02",
+            },
+        ];
 
-        let hasher = TryAndIncrement::<_, Scalar>::new(&DirectHasher);
-        let hash = hasher.hash_to_field(&[], msg).unwrap();
-        println!("scalar: {}", hex::encode(bincode::serialize(&hash)?));
-        assert_eq!(expected_hash, hash);
+        for case in cases.iter() {
+            let expected_hash: Scalar = bincode::deserialize(&hex::decode(case.expected)?)?;
+
+            let hasher = TryAndIncrement::<_, Scalar>::new(&DirectHasher);
+            let hash = hasher.hash_to_field(case.domain, case.message).unwrap();
+            println!("scalar: {}", hex::encode(bincode::serialize(&hash)?));
+            assert_eq!(expected_hash, hash);
+        }
         Ok(())
     }
 }
