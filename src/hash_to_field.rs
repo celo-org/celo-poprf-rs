@@ -27,7 +27,7 @@ pub enum HashError {
 }
 
 pub trait HashToField {
-    type Output;
+    type Output: Scalar<RHS = Self::Output>;
 
     fn hash_to_field(&self, domain: &[u8], message: &[u8]) -> Result<Self::Output, HashError>;
 }
@@ -105,10 +105,9 @@ fn hash_length(n: usize) -> usize {
 
 #[cfg(test)]
 mod tests {
+    use crate::bls12_377::Scalar;
     use crate::hash_to_field::{HashToField, TryAndIncrement};
     use bls_crypto::hashers::DirectHasher;
-    use rand::Rng;
-    use threshold_bls::group::Scalar;
 
     const RNG_SEED: [u8; 16] = [
         0x5d, 0xbe, 0x62, 0x59, 0x8d, 0x31, 0x3d, 0x76, 0x32, 0x37, 0xdb, 0x17, 0xe5, 0xbc, 0x06,
@@ -116,18 +115,21 @@ mod tests {
     ];
 
     #[test]
-    fn test_hash_to_field() {
-        let mut rng = rand::thread_rng();
-        let expected_hash = (); //TODO
+    fn test_hash_to_field() -> Result<(), Box<dyn std::error::Error>> {
+        let expected_hash: Scalar = bincode::deserialize(&hex::decode(
+            "9a94a71f3bd2efcfca590a6c619164d7ddf5be648c7029e426c3ce30f4a63711",
+        )?)?;
+        println!(
+            "expected scalar: {}",
+            hex::encode(bincode::serialize(&expected_hash)?)
+        );
 
-        let msg_size: u8 = rng.gen();
-        let mut msg: Vec<u8> = vec![0; msg_size as usize];
-        for i in msg.iter_mut() {
-            *i = rng.gen();
-        }
+        let msg = b"Hash to field test message";
 
-        let hasher = TryAndIncrement::<_, dyn Scalar>::new(&DirectHasher);
-        let hash = hasher.hash_to_field(&[], &msg).unwrap();
-        assert_eq!(expected_hash, hash)
+        let hasher = TryAndIncrement::<_, Scalar>::new(&DirectHasher);
+        let hash = hasher.hash_to_field(&[], msg).unwrap();
+        println!("scalar: {}", hex::encode(bincode::serialize(&hash)?));
+        assert_eq!(expected_hash, hash);
+        Ok(())
     }
 }
