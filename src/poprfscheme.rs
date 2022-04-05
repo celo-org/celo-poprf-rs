@@ -326,6 +326,9 @@ mod tests {
         let agg_result =
             G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
         let agg_key = private.get(0);
-        let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes());
+        let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
+        //println!("agg_key: {:?}", agg_key);
+
+        assert_eq!(&agg_result, &result);
     }
 }
