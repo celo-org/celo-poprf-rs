@@ -1,6 +1,6 @@
-//use ark_ec::hashing::field_hashers::DefaultFieldHasher;
-//use rand::prelude::*;
+use crate::hash_to_field::{HashToField, TryAndIncrement};
 use crate::POPRFError;
+use bls_crypto::hashers::DirectHasher;
 use rand::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
@@ -9,6 +9,9 @@ use threshold_bls::{
     poly::{Eval, Poly},
     sig::Share,
 };
+
+/// 8-byte constant hashing domain for the proof of related query subprotocol.
+const NIZK_HASH_DOMAIN: &'static [u8] = b"PoRQH2FF";
 
 /// The `Scheme` trait contains the basic information of the groups over which the PRF operations
 /// takes places and a way to create a valid key pair.
@@ -37,6 +40,7 @@ pub trait Scheme: Debug {
 
 pub mod poprf {
     use super::*;
+
     pub trait POPRF: Scheme {
         fn req<R: RngCore>(
             msg: &[u8],
@@ -55,88 +59,116 @@ pub mod poprf {
             let c = Self::Private::rand(rng);
             let d = Self::Private::rand(rng);
 
-            let mut h = Self::Public::one();
-            h.map(msg).map_err(|_| POPRFError::HashingError)?;
+            // h = H(msg)
+            let h = {
+                let mut h = Self::Public::one();
+                h.map(msg).map_err(|_| POPRFError::HashingError)?;
+                h
+            };
 
-            let mut a = h.clone();
-            a.mul(&r); // a = h^r
+            // a = h^r
+            let a = {
+                let mut a = h.clone();
+                a.mul(&r);
+                a
+            };
 
-            h.mul(&c);
-            let mut g2 = Self::Public::one();
-            let mut b = h.clone();
-            g2.mul(&d);
-            b.add(&g2); // b = h^c * g2^d
+            // b = h^c * g2^d
+            let b = {
+                let mut b = h;
+                let mut g2d = Self::Public::one();
+                b.mul(&c);
+                g2d.mul(&d);
+                b.add(&g2d);
+                b
+            };
 
             Ok((r, c, d, a, b))
         }
 
         // Prove(a, b, c/r, d)
         fn prove<R: RngCore>(
-            a: &mut Self::Public,
+            a: Self::Public,
             b: &Self::Public,
-            x: &mut Self::Private,
-            y: &mut Self::Private,
+            x: Self::Private,
+            y: Self::Private,
             rng: &mut R,
         ) -> Result<(Self::Private, Self::Private, Self::Private), POPRFError> {
             let v1 = Self::Private::rand(rng);
             let v2 = Self::Private::rand(rng);
 
             // v = g2^v1 * a^v2
-            let mut g2 = Self::Public::one();
-            g2.mul(&v1);
-            a.mul(&v2);
-            let mut v = g2.clone();
-            v.add(&a);
+            let v = {
+                let mut g2v1 = Self::Public::one();
+                let mut av2 = a.clone();
+                g2v1.mul(&v1);
+                av2.mul(&v2);
+                let mut v = g2v1;
+                v.add(&av2);
+                v
+            };
 
             // Concatenate (g2 || v || a || b)
-            let g2_ser = bincode::serialize(&g2)?;
+            let g2_ser = bincode::serialize(&Self::Public::one())?;
             let v_ser = bincode::serialize(&v)?;
             let a_ser = bincode::serialize(&a)?;
             let b_ser = bincode::serialize(&b)?;
-            let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
+            let concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
-            // TODO: implement hash to scalar field
-            let z = Self::Private::new();
-            //z.map(&concatenate)?;
+            let hasher = TryAndIncrement::new(&DirectHasher);
+            let z = hasher.hash_to_field(NIZK_HASH_DOMAIN, &concatenate)?;
 
             // s1 = v1 - y * z
-            let mut s1 = v1;
-            y.mul(&z);
-            s1.sub(&y);
+            let s1 = {
+                let mut s1 = v1;
+                let mut yz = y;
+                yz.mul(&z);
+                s1.sub(&yz);
+                s1
+            };
 
             // s2 = v2 - x * z
-            let mut s2 = v2;
-            x.mul(&z);
-            s2.sub(&x);
+            let s2 = {
+                let mut s2 = v2;
+                let mut xz = x;
+                xz.mul(&z);
+                s2.sub(&xz);
+                s2
+            };
 
             Ok((z, s1, s2))
         }
 
         fn verify(
-            a: &mut Self::Public,
-            b: &mut Self::Public,
+            a: Self::Public,
+            b: Self::Public,
             z: &Self::Private,
             s1: &Self::Private,
             s2: &Self::Private,
         ) -> Result<bool, POPRFError> {
             // v = g2^s1 * a^s2 * b^z
-            let mut g2 = Self::Public::one();
-            g2.mul(&s1);
-            a.mul(&s2);
-            b.mul(&z);
-            let mut v = g2.clone();
-            v.add(&a);
-            v.add(&b);
+            let v = {
+                let mut g2s1 = Self::Public::one();
+                g2s1.mul(&s1);
+                let mut as2 = a.clone();
+                as2.mul(&s2);
+                let mut bz = b.clone();
+                bz.mul(&z);
+                let mut v = g2s1;
+                v.add(&as2);
+                v.add(&bz);
+                v
+            };
 
             // Concatenate (g2 || v || a || b)
-            let g2_ser = bincode::serialize(&g2)?;
+            let g2_ser = bincode::serialize(&Self::Public::one())?;
             let v_ser = bincode::serialize(&v)?;
             let a_ser = bincode::serialize(&a)?;
             let b_ser = bincode::serialize(&b)?;
-            let mut concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
+            let concatenate: Vec<u8> = [g2_ser, v_ser, a_ser, b_ser].concat();
 
-            // TODO: implement hash to scalar field
-            let h = Self::Private::new();
+            let hasher = TryAndIncrement::new(&DirectHasher);
+            let h = hasher.hash_to_field(NIZK_HASH_DOMAIN, &concatenate)?;
 
             Ok(*z == h)
         }

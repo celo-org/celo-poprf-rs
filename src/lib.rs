@@ -1,4 +1,7 @@
 pub mod api;
+
+// Note: This conditionally should be removed when/if C FFI is added.
+#[cfg(feature = "wasm")]
 pub mod ffi;
 
 mod hash_to_field;
@@ -11,6 +14,9 @@ use thiserror::Error;
 pub enum POPRFError {
     #[error("could not hash to curve")]
     HashingError,
+
+    #[error("could not hash to scalar field")]
+    HashError(#[from] crate::hash_to_field::HashError),
 
     #[error("could not serialize")]
     SerializationError(#[from] Box<bincode::ErrorKind>),
@@ -35,7 +41,7 @@ pub enum POPRFError {
 /// BLS12-377 instantiations.
 pub mod bls12_377 {
     use threshold_bls::curve::bls12377::PairingCurve;
-    pub use threshold_bls::curve::bls12377::{G1Curve, G2Curve};
+    pub use threshold_bls::curve::bls12377::{G1Curve, G2Curve, Scalar};
 
     /// Public Keys and messages on G2, tags on G1.
     pub type G2Scheme = super::poprf::G2Scheme<PairingCurve>;
