@@ -151,7 +151,9 @@ where
                 index: p.index,
             })
             .collect::<Vec<Share<C::Evaluation>>>();
+        println!("partials: {:?}", &partials);
         let res = C::aggregate(threshold, &vec)?;
+        println!("aggregate: {:?}", &res);
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
             .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
@@ -162,11 +164,14 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::POPRFError;
     use crate::api::POPRFScheme;
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Poly, Share};
     use threshold_bls::curve::bls12377::PairingCurve as bls377;
     use threshold_bls::group::Element;
+
+    use threshold_bls::poly::Eval;
 
     type G2Scheme = crate::poprf::G2Scheme<bls377>;
 
@@ -209,16 +214,44 @@ mod tests {
         let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::PartialResp>::new();
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
         for i in 0..t {
-            let key = private.get(i.try_into().unwrap());
+            let key = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
-                private: key,
+                private: key.value,
                 index: i.try_into().unwrap(),
             };
             let partial_resp =
                 G2Scheme::partial_eval(&partial_key, tag.as_bytes(), msg.as_bytes()).unwrap();
             partial_resps.push(partial_resp);
         }
-        let _agg_result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+        let agg_result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+        let agg_key = private.get(0);
+        let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
+        println!("agg_result: {:?}", &agg_result);
+
+        let mut key_evals = Vec::<Eval<<G2Scheme as Scheme>::Private>>::new();
+        for i in 0..t {
+            let key = private.eval(i.try_into().unwrap());
+            key_evals.push(key);
+            /*let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
+                private: key,
+                index: i.try_into().unwrap(),
+            }; 
+            key_shares.push(partial_key);*/
+        }
+
+        /*let key_evals: Vec<Eval<<G2Scheme as Scheme>::Private>> = key_shares
+                   .iter()
+                   .map(|share| {
+                       Ok(Eval {
+                           index: share.index,
+                           value: share.private.clone(),
+                       })
+                   })
+                   .collect::<Result<_, POPRFError>>().unwrap();*/
+               //let zero_key = Poly::recover(t, key_evals);
+               //println!("zero_key: {:?}", &zero_key);
+               //println!("agg_key: {:?}", &agg_key);
+        assert_eq!(&agg_result, &result);
     }
 
     #[test]
@@ -315,7 +348,7 @@ mod tests {
         let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::BlindPartialResp>::new();
         for i in 0..t {
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
-                private: private.get(i.try_into().unwrap()),
+                private: private.eval(i.try_into().unwrap()).value,
                 index: i.try_into().unwrap(),
             };
             let partial_resp =
@@ -327,7 +360,10 @@ mod tests {
             G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
-        //println!("agg_key: {:?}", agg_key);
+        //println!("partial_resps: {:?}", &partial_resps);
+        println!("blindmsg: {:?}", &blindmsg);
+        println!("blind_resp: {:?}", &blind_resp);
+        println!("agg_key: {:?}", agg_key);
 
         assert_eq!(&agg_result, &result);
     }

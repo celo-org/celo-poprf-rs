@@ -199,7 +199,10 @@ pub mod poprf {
                     })
                 })
                 .collect::<Result<_, POPRFError>>()?;
+            println!("threshold: {}", threshold);
+            println!("valid_shares: {:?}", &valid_shares);
             let res = Poly::recover(threshold, valid_shares)?;
+            println!("recover res: {:?}", &res);
 
             Ok(res)
         }
