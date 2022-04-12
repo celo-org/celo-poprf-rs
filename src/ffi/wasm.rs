@@ -49,7 +49,7 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
     // Blind the message with this randomness.
     let (blinding_factor, blinded_message) =
         POPRF::blind_msg(message, &mut rng).map_err(|err| {
-            JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+            JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
         })?;
 
     // return the message and the blinding_factor used for blinding.
@@ -81,18 +81,18 @@ pub fn unblind_resp(
     init_panic_hook();
 
     let public_key: PublicKey = bincode::deserialize(public_key_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize public key {}", err)))?;
+        .map_err(|err| JsValue::from_str(&format!("could not deserialize public key: {}", err)))?;
 
     let blinded_resp: BlindResp = bincode::deserialize(blinded_resp_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+        JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
     })?;
 
     let blinding_factor: Token = bincode::deserialize(blinding_factor_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize blinding factor {}", err))
+        JsValue::from_str(&format!("could not deserialize blinding factor: {}", err))
     })?;
 
     POPRF::unblind_resp(&public_key, &blinding_factor, tag, &blinded_resp)
-        .map_err(|err| JsValue::from_str(&format!("could not unblind response {}", err)))
+        .map_err(|err| JsValue::from_str(&format!("could not unblind response: {}", err)))
 }
 
 #[wasm_bindgen(js_name = unblindPartialResp)]
@@ -118,20 +118,20 @@ pub fn unblind_partial_resp(
     init_panic_hook();
 
     let polynomial: Poly<PublicKey> = bincode::deserialize(polynomial_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize polynomial {}", err)))?;
+        .map_err(|err| JsValue::from_str(&format!("could not deserialize polynomial: {}", err)))?;
 
     let blinded_partial_resp: BlindPartialResp = bincode::deserialize(blinded_partial_resp_buf)
         .map_err(|err| {
-            JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+            JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
         })?;
 
     let blinding_factor: Token = bincode::deserialize(blinding_factor_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize blinding factor {}", err))
+        JsValue::from_str(&format!("could not deserialize blinding factor: {}", err))
     })?;
 
     let result =
         POPRF::unblind_partial_resp(&polynomial, &blinding_factor, tag, &blinded_partial_resp)
-            .map_err(|err| JsValue::from_str(&format!("could not unblind response {}", err)))?;
+            .map_err(|err| JsValue::from_str(&format!("could not unblind response: {}", err)))?;
 
     bincode::serialize(&result)
         .map_err(|err| JsValue::from_str(&format!("could not serialize result: {}", err)))
@@ -153,7 +153,7 @@ pub fn eval(private_key_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8
     init_panic_hook();
 
     let private_key: PrivateKey = bincode::deserialize(private_key_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize private key {}", err)))?;
+        .map_err(|err| JsValue::from_str(&format!("could not deserialize private key: {}", err)))?;
 
     POPRF::eval(&private_key, tag, message)
         .map_err(|err| JsValue::from_str(&format!("could not produce evaluation: {}", err)))
@@ -175,10 +175,10 @@ pub fn blind_eval(
     init_panic_hook();
 
     let private_key: PrivateKey = bincode::deserialize(private_key_buf)
-        .map_err(|err| JsValue::from_str(&format!("could not deserialize private key {}", err)))?;
+        .map_err(|err| JsValue::from_str(&format!("could not deserialize private key: {}", err)))?;
 
     let blinded_message: BlindMsg = bincode::deserialize(blinded_message_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+        JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
     })?;
 
     let result = POPRF::blind_eval(&private_key, tag, &blinded_message)
@@ -203,7 +203,7 @@ pub fn partial_eval(share_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<
     init_panic_hook();
 
     let share: Share<PrivateKey> = bincode::deserialize(share_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize private key share {}", err))
+        JsValue::from_str(&format!("could not deserialize private key share: {}", err))
     })?;
 
     let result = POPRF::partial_eval(&share, tag, message).map_err(|err| {
@@ -233,11 +233,11 @@ pub fn blind_partial_eval(
     init_panic_hook();
 
     let share: Share<PrivateKey> = bincode::deserialize(share_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize private key share {}", err))
+        JsValue::from_str(&format!("could not deserialize private key share: {}", err))
     })?;
 
     let blinded_message: BlindMsg = bincode::deserialize(blinded_message_buf).map_err(|err| {
-        JsValue::from_str(&format!("could not deserialize blinded response {}", err))
+        JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
     })?;
 
     let result = POPRF::blind_partial_eval(&share, tag, &blinded_message).map_err(|err| {
@@ -281,7 +281,7 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
         .chunks(PARTIAL_RESPONSE_LENGTH)
         .map(|buf| {
             bincode::deserialize::<PartialResp>(buf).map_err(|err| {
-                JsValue::from_str(&format!("could not deserialize partial responses {}", err))
+                JsValue::from_str(&format!("could not deserialize partial responses: {}", err))
             })
         })
         .collect::<Result<Vec<PartialResp>>>()?;
@@ -321,7 +321,7 @@ pub fn blind_aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Resu
         .map(|buf| {
             bincode::deserialize::<BlindPartialResp>(buf).map_err(|err| {
                 JsValue::from_str(&format!(
-                    "could not deserialize blinded partial responses {}",
+                    "could not deserialize blinded partial responses: {}",
                     err
                 ))
             })
@@ -351,7 +351,7 @@ pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Result<Keys> {
 
     let mut rng = get_rng(&[seed])?;
     let private = Poly::<PrivateKey>::new_from(t - 1, &mut rng);
-    let shares = (0..n)
+    let shares = (1..n+1)
         .map(|i| private.eval(i as Idx))
         .map(|e| Share {
             index: e.index,
