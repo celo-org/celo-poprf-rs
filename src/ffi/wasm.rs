@@ -351,7 +351,7 @@ pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Result<Keys> {
 
     let mut rng = get_rng(&[seed])?;
     let private = Poly::<PrivateKey>::new_from(t - 1, &mut rng);
-    let shares = (1..n+1)
+    let shares = (1..n + 1)
         .map(|i| private.eval(i as Idx))
         .map(|e| Share {
             index: e.index,

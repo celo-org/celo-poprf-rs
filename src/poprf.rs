@@ -192,11 +192,9 @@ pub mod poprf {
 
             let shares: Vec<Eval<Self::Evaluation>> = shares
                 .iter()
-                .map(|share| {
-                    Eval {
-                        index: share.index,
-                        value: share.private.clone(),
-                    }
+                .map(|share| Eval {
+                    index: share.index,
+                    value: share.private.clone(),
                 })
                 .collect();
             let res = Poly::recover(threshold, shares)?;

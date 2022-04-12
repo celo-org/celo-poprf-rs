@@ -315,7 +315,7 @@ mod tests {
         let public_key = public.public_key();
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::BlindPartialResp>::new();
-        for i in 1..t+1 {
+        for i in 1..t + 1 {
             let eval = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
                 private: eval.value,
