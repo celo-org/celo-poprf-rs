@@ -190,16 +190,16 @@ pub mod poprf {
                 return Err(POPRFError::NotEnoughResponses(shares.len(), threshold));
             }
 
-            let valid_shares: Vec<Eval<Self::Evaluation>> = shares
+            let shares: Vec<Eval<Self::Evaluation>> = shares
                 .iter()
                 .map(|share| {
-                    Ok(Eval {
+                    Eval {
                         index: share.index,
                         value: share.private.clone(),
-                    })
+                    }
                 })
-                .collect::<Result<_, POPRFError>>()?;
-            let res = Poly::recover(threshold, valid_shares)?;
+                .collect();
+            let res = Poly::recover(threshold, shares)?;
 
             Ok(res)
         }
