@@ -9,7 +9,7 @@ pub use threshold_bls::{
     sig::Share,
 };
 
-pub trait POPRFScheme: Scheme {
+pub trait PoprfScheme: Scheme {
     type Error: Error;
 
     /// The blinding factor which will be used to unblind and verify the message.

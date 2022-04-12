@@ -11,7 +11,7 @@ mod prf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum POPRFError {
+pub enum PoprfError {
     #[error("could not hash to curve")]
     HashingError,
 
@@ -47,24 +47,24 @@ pub mod bls12_377 {
     pub type G2Scheme = super::poprf::G2Scheme<PairingCurve>;
 }
 
-use crate::{api::POPRFScheme, poprf::Scheme};
+use crate::{api::PoprfScheme, poprf::Scheme};
 
-pub type POPRF = bls12_377::G2Scheme;
+pub type Poprf = bls12_377::G2Scheme;
 
-pub type PublicKey = <POPRF as Scheme>::Public;
-pub type PrivateKey = <POPRF as Scheme>::Private;
+pub type PublicKey = <Poprf as Scheme>::Public;
+pub type PrivateKey = <Poprf as Scheme>::Private;
 
 /// The blinding factor which will be used to unblind and verify the message.
-pub type Token = <POPRF as POPRFScheme>::Token;
+pub type Token = <Poprf as PoprfScheme>::Token;
 
 /// The blinded message type which is created by the client.
-pub type BlindMsg = <POPRF as POPRFScheme>::BlindMsg;
+pub type BlindMsg = <Poprf as PoprfScheme>::BlindMsg;
 
 /// The blinded response type which results from an eval on a blinded message and plaintext tag.
-pub type BlindResp = <POPRF as POPRFScheme>::BlindResp;
+pub type BlindResp = <Poprf as PoprfScheme>::BlindResp;
 
 /// The partial response type
-pub type PartialResp = <POPRF as POPRFScheme>::PartialResp;
+pub type PartialResp = <Poprf as PoprfScheme>::PartialResp;
 
 /// The blind partial response type
-pub type BlindPartialResp = <POPRF as POPRFScheme>::BlindPartialResp;
+pub type BlindPartialResp = <Poprf as PoprfScheme>::BlindPartialResp;

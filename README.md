@@ -7,6 +7,13 @@
 This repository implements a threshold-computable partially-oblivious pseudo-random function (POPRF)
 with evaluations that are verifiable by the client.
 
+A partially-oblivious PRF (POPRF) is a protocol between a client and a server to evaluate the keyed
+pseudo-random function F(k, t, m). The client provides the tag input, t, and message input, m. The
+server provides the secret key input k. During the exchange the server learns the client-provided
+tag, but gains no other information. In particular, they learn nothing about the message. The client
+learns the output of the PRF function F, but no other information about the secret key held by the
+server.
+
 Building upon the existing [BLS threshold signature based OPRF] implemented for use on Celo in
 [ODIS], this repository implements an extension to the [Pythia] POPRF specification to provide
 threshold computation and verification against a single pre-shared public key. This construction is
