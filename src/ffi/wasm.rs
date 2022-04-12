@@ -9,10 +9,10 @@ use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
 
 use crate::{
-    api::{Idx, POPRFScheme, Poly, Share},
+    api::{Idx, PoprfScheme, Poly, Share},
     ffi::{BLIND_PARTIAL_RESPONSE_LENGTH, PARTIAL_RESPONSE_LENGTH},
     poprf::Scheme,
-    BlindMsg, BlindPartialResp, BlindResp, PartialResp, PrivateKey, PublicKey, Token, POPRF,
+    BlindMsg, BlindPartialResp, BlindResp, PartialResp, PrivateKey, PublicKey, Token, Poprf,
 };
 
 type Result<T> = std::result::Result<T, JsValue>;
@@ -48,7 +48,7 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
 
     // Blind the message with this randomness.
     let (blinding_factor, blinded_message) =
-        POPRF::blind_msg(message, &mut rng).map_err(|err| {
+        Poprf::blind_msg(message, &mut rng).map_err(|err| {
             JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
         })?;
 
@@ -91,7 +91,7 @@ pub fn unblind_resp(
         JsValue::from_str(&format!("could not deserialize blinding factor: {}", err))
     })?;
 
-    POPRF::unblind_resp(&public_key, &blinding_factor, tag, &blinded_resp)
+    Poprf::unblind_resp(&public_key, &blinding_factor, tag, &blinded_resp)
         .map_err(|err| JsValue::from_str(&format!("could not unblind response: {}", err)))
 }
 
@@ -130,7 +130,7 @@ pub fn unblind_partial_resp(
     })?;
 
     let result =
-        POPRF::unblind_partial_resp(&polynomial, &blinding_factor, tag, &blinded_partial_resp)
+        Poprf::unblind_partial_resp(&polynomial, &blinding_factor, tag, &blinded_partial_resp)
             .map_err(|err| JsValue::from_str(&format!("could not unblind response: {}", err)))?;
 
     bincode::serialize(&result)
@@ -155,7 +155,7 @@ pub fn eval(private_key_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8
     let private_key: PrivateKey = bincode::deserialize(private_key_buf)
         .map_err(|err| JsValue::from_str(&format!("could not deserialize private key: {}", err)))?;
 
-    POPRF::eval(&private_key, tag, message)
+    Poprf::eval(&private_key, tag, message)
         .map_err(|err| JsValue::from_str(&format!("could not produce evaluation: {}", err)))
 }
 
@@ -181,7 +181,7 @@ pub fn blind_eval(
         JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
     })?;
 
-    let result = POPRF::blind_eval(&private_key, tag, &blinded_message)
+    let result = Poprf::blind_eval(&private_key, tag, &blinded_message)
         .map_err(|err| JsValue::from_str(&format!("could not sign message: {}", err)))?;
 
     bincode::serialize(&result)
@@ -206,7 +206,7 @@ pub fn partial_eval(share_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<
         JsValue::from_str(&format!("could not deserialize private key share: {}", err))
     })?;
 
-    let result = POPRF::partial_eval(&share, tag, message).map_err(|err| {
+    let result = Poprf::partial_eval(&share, tag, message).map_err(|err| {
         JsValue::from_str(&format!("could not produce partial evaluation: {}", err))
     })?;
 
@@ -240,7 +240,7 @@ pub fn blind_partial_eval(
         JsValue::from_str(&format!("could not deserialize blinded response: {}", err))
     })?;
 
-    let result = POPRF::blind_partial_eval(&share, tag, &blinded_message).map_err(|err| {
+    let result = Poprf::blind_partial_eval(&share, tag, &blinded_message).map_err(|err| {
         JsValue::from_str(&format!("could not produce partial evaluation: {}", err))
     })?;
 
@@ -286,7 +286,7 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
         })
         .collect::<Result<Vec<PartialResp>>>()?;
 
-    POPRF::aggregate(threshold, &evaluations)
+    Poprf::aggregate(threshold, &evaluations)
         .map_err(|err| JsValue::from_str(&format!("could not aggregate evaluations: {}", err)))
 }
 
@@ -328,7 +328,7 @@ pub fn blind_aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Resu
         })
         .collect::<Result<Vec<BlindPartialResp>>>()?;
 
-    let result = POPRF::blind_aggregate(threshold, &blinded_evaluations)
+    let result = Poprf::blind_aggregate(threshold, &blinded_evaluations)
         .map_err(|err| JsValue::from_str(&format!("could not aggregate evaluations: {}", err)))?;
 
     bincode::serialize(&result)
@@ -423,7 +423,7 @@ pub fn keygen(seed: &[u8]) -> Result<Keypair> {
     init_panic_hook();
 
     let mut rng = get_rng(&[seed])?;
-    let (private, public) = POPRF::keypair(&mut rng);
+    let (private, public) = Poprf::keypair(&mut rng);
     Ok(Keypair { private, public })
 }
 

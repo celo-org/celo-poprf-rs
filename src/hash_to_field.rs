@@ -10,6 +10,7 @@ use threshold_bls::group::Scalar;
 const NUM_TRIES: u8 = 255;
 
 #[derive(Debug, Error)]
+#[allow(clippy::enum_variant_names)]
 pub enum HashError {
     /// Hashing to field failed
     #[error("could not hash to scalar field")]

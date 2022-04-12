@@ -1,6 +1,6 @@
-use crate::api::POPRFScheme;
-use crate::poprf::poprf::POPRF;
-use crate::POPRFError;
+use crate::api::PoprfScheme;
+use crate::poprf::Poprf;
+use crate::PoprfError;
 use bls_crypto::hashers::{DirectHasher, Hasher};
 use rand_core::RngCore;
 use std::fmt::Debug;
@@ -11,14 +11,14 @@ use threshold_bls::{
 };
 
 /// 8-byte constant hashing domain for the evaluation result hashing.
-const NIZK_HASH_DOMAIN: &'static [u8] = b"PRFEVALH";
+const NIZK_HASH_DOMAIN: &[u8] = b"PRFEVALH";
 const HASH_OUTPUT_BYTES: usize = 32;
 
-impl<C> POPRFScheme for C
+impl<C> PoprfScheme for C
 where
-    C: POPRF + Debug,
+    C: Poprf + Debug,
 {
-    type Error = POPRFError;
+    type Error = PoprfError;
     type Token = (C::Private, C::Private, C::Private);
     type BlindMsg = (C::Private, C::Private, C::Private, C::Public, C::Public);
     type BlindResp = (C::Evaluation, C::Evaluation);
@@ -46,9 +46,9 @@ where
         msg: &Self::BlindMsg,
     ) -> Result<Self::BlindResp, Self::Error> {
         let (z, s_1, s_2, a, b) = msg;
-        C::verify(a.clone(), b.clone(), &z, &s_1, &s_2)?
+        C::verify(a.clone(), b.clone(), z, s_1, s_2)?
             .then(|| ())
-            .ok_or(POPRFError::VerifyError)?;
+            .ok_or(PoprfError::VerifyError)?;
         let (A, B) = C::blind_ev(private, tag, a, b)?;
         Ok((A, B))
     }
@@ -66,7 +66,7 @@ where
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
             .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| POPRFError::HashingError)?;
+            .map_err(|_e| PoprfError::HashingError)?;
 
         Ok(res_hash)
     }
@@ -105,14 +105,14 @@ where
         partials: &[Self::BlindPartialResp],
     ) -> Result<Self::BlindResp, Self::Error> {
         let A_vec = partials
-            .into_iter()
+            .iter()
             .map(|p| Share {
                 private: p.private.0.clone(),
                 index: p.index,
             })
             .collect::<Vec<Share<C::Evaluation>>>();
         let B_vec = partials
-            .into_iter()
+            .iter()
             .map(|p| Share {
                 private: p.private.1.clone(),
                 index: p.index,
@@ -124,11 +124,11 @@ where
     }
 
     fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error> {
-        let res = C::eval(&private, tag, msg)?;
+        let res = C::eval(private, tag, msg)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
             .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| POPRFError::HashingError)?;
+            .map_err(|_e| PoprfError::HashingError)?;
 
         Ok(res_hash)
     }
@@ -147,7 +147,7 @@ where
 
     fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error> {
         let vec = partials
-            .into_iter()
+            .iter()
             .map(|p| Share {
                 private: p.private.clone(),
                 index: p.index,
@@ -157,14 +157,14 @@ where
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
             .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| POPRFError::HashingError)?;
+            .map_err(|_e| PoprfError::HashingError)?;
         Ok(res_hash)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::POPRFScheme;
+    use crate::api::PoprfScheme;
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Poly, Share};
     use threshold_bls::curve::bls12377::PairingCurve as bls377;
@@ -208,7 +208,7 @@ mod tests {
         let t: usize = 3;
         let msg = "Hello World!";
         let tag = "Bob";
-        let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::PartialResp>::new();
+        let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::PartialResp>::new();
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
         for i in 0..t {
             let key = private.eval(i.try_into().unwrap());
@@ -230,7 +230,7 @@ mod tests {
         let t: usize = 5;
         let msg = "Hello World!";
         let tag = "Bob";
-        let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::PartialResp>::new();
+        let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::PartialResp>::new();
         for i in 0..t - 1 {
             let (key, _) = G2Scheme::keypair(&mut rng);
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
@@ -314,7 +314,7 @@ mod tests {
         let public = private.commit::<<G2Scheme as Scheme>::Public>();
         let public_key = public.public_key();
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
-        let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::BlindPartialResp>::new();
+        let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::BlindPartialResp>::new();
         for i in 1..t + 1 {
             let eval = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
