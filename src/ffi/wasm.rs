@@ -9,10 +9,10 @@ use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
 
 use crate::{
-    api::{Idx, PoprfScheme, Poly, Share},
+    api::{Idx, Poly, PoprfScheme, Share},
     ffi::{BLIND_PARTIAL_RESPONSE_LENGTH, PARTIAL_RESPONSE_LENGTH},
     poprf::Scheme,
-    BlindMsg, BlindPartialResp, BlindResp, PartialResp, PrivateKey, PublicKey, Token, Poprf,
+    BlindMsg, BlindPartialResp, BlindResp, PartialResp, Poprf, PrivateKey, PublicKey, Token,
 };
 
 type Result<T> = std::result::Result<T, JsValue>;
