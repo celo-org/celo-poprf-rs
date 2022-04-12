@@ -10,7 +10,9 @@ use threshold_bls::{
     sig::Share,
 };
 
-const HASH_OUTPUT_BITS: usize = 256;
+/// 8-byte constant hashing domain for the evaluation result hashing.
+const NIZK_HASH_DOMAIN: &'static [u8] = b"PRFEVALH";
+const HASH_OUTPUT_BYTES: usize = 32;
 
 impl<C> POPRFScheme for C
 where
@@ -63,7 +65,7 @@ where
         let res = C::finalize(public, A, B, tag, r, c, d)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
-            .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
             .map_err(|_e| POPRFError::HashingError)?;
 
         Ok(res_hash)
@@ -125,7 +127,7 @@ where
         let res = C::eval(&private, tag, msg)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
-            .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
             .map_err(|_e| POPRFError::HashingError)?;
 
         Ok(res_hash)
@@ -154,7 +156,7 @@ where
         let res = C::aggregate(threshold, &vec)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
-            .hash(&[], &serialized[..], HASH_OUTPUT_BITS)
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
             .map_err(|_e| POPRFError::HashingError)?;
         Ok(res_hash)
     }
