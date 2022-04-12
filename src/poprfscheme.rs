@@ -92,7 +92,7 @@ where
     ) -> Result<Self::PartialResp, Self::Error> {
         let (r, c, d) = token;
         let (A, B) = resp.private.clone();
-        let res = C::finalize(&public.get(resp.index), &A, &B, tag, r, c, d)?;
+        let res = C::finalize(&public.eval(resp.index).value, &A, &B, tag, r, c, d)?;
         Ok(Share {
             private: res,
             index: resp.index,
@@ -211,10 +211,10 @@ mod tests {
         let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::PartialResp>::new();
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
         for i in 0..t {
-            let key = private.get(i.try_into().unwrap());
+            let key = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
-                private: key,
-                index: i.try_into().unwrap(),
+                private: key.value,
+                index: key.index,
             };
             let partial_resp =
                 G2Scheme::partial_eval(&partial_key, tag.as_bytes(), msg.as_bytes()).unwrap();
@@ -255,7 +255,7 @@ mod tests {
         let public = private.commit::<<G2Scheme as Scheme>::Public>();
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let private_key = Share {
-            private: private.get(index),
+            private: private.eval(index).value,
             index: index,
         };
         let blind_partial_resp =
@@ -315,10 +315,11 @@ mod tests {
         let public_key = public.public_key();
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let mut partial_resps = Vec::<<G2Scheme as POPRFScheme>::BlindPartialResp>::new();
-        for i in 0..t {
+        for i in 1..t+1 {
+            let eval = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
-                private: private.get(i.try_into().unwrap()),
-                index: i.try_into().unwrap(),
+                private: eval.value,
+                index: eval.index,
             };
             let partial_resp =
                 G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
