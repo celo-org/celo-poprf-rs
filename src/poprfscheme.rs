@@ -164,14 +164,13 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::POPRFError;
     use crate::api::POPRFScheme;
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Poly, Share};
     use threshold_bls::curve::bls12377::PairingCurve as bls377;
     use threshold_bls::group::Element;
-
-    use threshold_bls::poly::Eval;
+    use rand_chacha::ChaCha8Rng;
+    use rand_core::SeedableRng;
 
     type G2Scheme = crate::poprf::G2Scheme<bls377>;
 
@@ -204,7 +203,6 @@ mod tests {
             G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
     }
 
-    // TODO: get agg key and test against eval
     #[test]
     fn aggregate() {
         let mut rng = rand::thread_rng();
@@ -226,31 +224,7 @@ mod tests {
         let agg_result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
-        println!("agg_result: {:?}", &agg_result);
 
-        let mut key_evals = Vec::<Eval<<G2Scheme as Scheme>::Private>>::new();
-        for i in 0..t {
-            let key = private.eval(i.try_into().unwrap());
-            key_evals.push(key);
-            /*let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
-                private: key,
-                index: i.try_into().unwrap(),
-            }; 
-            key_shares.push(partial_key);*/
-        }
-
-        /*let key_evals: Vec<Eval<<G2Scheme as Scheme>::Private>> = key_shares
-                   .iter()
-                   .map(|share| {
-                       Ok(Eval {
-                           index: share.index,
-                           value: share.private.clone(),
-                       })
-                   })
-                   .collect::<Result<_, POPRFError>>().unwrap();*/
-               //let zero_key = Poly::recover(t, key_evals);
-               //println!("zero_key: {:?}", &zero_key);
-               //println!("agg_key: {:?}", &agg_key);
         assert_eq!(&agg_result, &result);
     }
 
@@ -324,17 +298,18 @@ mod tests {
         .unwrap();
     }
 
-    // TODO: Test against fixed output
     #[test]
     fn eval() {
-        let mut rng = rand::thread_rng();
+        //let mut rng = rand::thread_rng();
+        let mut rng = ChaCha8Rng::seed_from_u64(2);
         let msg = "Hello World!";
         let tag = "Bob";
         let (private, _) = G2Scheme::keypair(&mut rng);
-        let _result = G2Scheme::eval(&private, tag.as_bytes(), msg.as_bytes()).unwrap();
+        let result = G2Scheme::eval(&private, tag.as_bytes(), msg.as_bytes()).unwrap();
+        let expected_result = [242, 161, 166, 74, 193, 182, 33, 175, 45, 252, 166, 159, 197, 107, 174, 129, 237, 135, 253, 195, 59, 54, 121, 130, 157, 229, 160, 87, 177, 112, 41, 187, 200, 89, 96, 168, 101, 179, 108, 66, 16, 209, 179, 133, 19, 187, 249, 209, 167, 112, 237, 33, 139, 98, 122, 30, 224, 228, 37, 140, 55, 178, 26, 0, 156, 132, 86, 109, 41, 50, 143, 180, 111, 209, 41, 145, 36, 11, 150, 67, 190, 198, 134, 81, 23, 237, 255, 184, 143, 170, 189, 115, 247, 207, 163, 162, 110, 56, 149, 238, 31, 155, 173, 56, 165, 2, 190, 73, 158, 223, 13, 239, 2, 28, 62, 59, 37, 26, 98, 13, 105, 163, 15, 56, 93, 24, 182, 210, 143, 82, 135, 193, 108, 64, 163, 88, 225, 7, 23, 144, 87, 145, 175, 24, 160, 252, 199, 125, 74, 83, 11, 21, 99, 105, 139, 134, 252, 47, 189, 28, 187, 13, 24, 88, 251, 161, 215, 39, 202, 55, 42, 208, 35, 15, 208, 248, 232, 166, 7, 220, 147, 74, 165, 201, 29, 136, 56, 27, 191, 81, 150, 202, 24, 102, 25, 231, 84, 229, 28, 77, 138, 97, 135, 182, 202, 103, 71, 18, 61, 244, 202, 154, 219, 255, 249, 107, 183, 73, 26, 200, 170, 172, 5, 152, 3, 4, 38, 187, 79, 94, 118, 222, 206, 23, 181, 143, 5, 55, 27, 41, 244, 15, 81, 35, 21, 192, 175, 122, 161, 98, 24, 228, 29, 54, 182, 89];
+        assert_eq!(result, expected_result);
     }
 
-    // TODO: Get agg key and test against eval
     #[test]
     fn dist_poprf() {
         let mut rng = rand::thread_rng();
@@ -360,10 +335,6 @@ mod tests {
             G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
-        //println!("partial_resps: {:?}", &partial_resps);
-        println!("blindmsg: {:?}", &blindmsg);
-        println!("blind_resp: {:?}", &blind_resp);
-        println!("agg_key: {:?}", agg_key);
 
         assert_eq!(&agg_result, &result);
     }
