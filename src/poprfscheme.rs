@@ -167,10 +167,10 @@ mod tests {
     use crate::api::PoprfScheme;
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Poly, Share};
-    use threshold_bls::curve::bls12377::PairingCurve as bls377;
-    use threshold_bls::group::Element;
     use rand_chacha::ChaCha8Rng;
     use rand_core::SeedableRng;
+    use threshold_bls::curve::bls12377::PairingCurve as bls377;
+    use threshold_bls::group::Element;
 
     type G2Scheme = crate::poprf::G2Scheme<bls377>;
 
@@ -181,7 +181,10 @@ mod tests {
         let tag = "Bob";
         let (private, _) = G2Scheme::keypair(&mut rng);
         let result = G2Scheme::eval(&private, tag.as_bytes(), msg.as_bytes()).unwrap();
-        let expected_result = [151, 205, 148, 96, 202, 50, 200, 245, 255, 47, 156, 23, 121, 48, 42, 74, 231, 208, 239, 211, 82, 232, 45, 2, 181, 83, 52, 224, 54, 232, 143, 114];
+        let expected_result = [
+            151, 205, 148, 96, 202, 50, 200, 245, 255, 47, 156, 23, 121, 48, 42, 74, 231, 208, 239,
+            211, 82, 232, 45, 2, 181, 83, 52, 224, 54, 232, 143, 114,
+        ];
         assert_eq!(result, expected_result);
     }
 
@@ -309,7 +312,6 @@ mod tests {
         .unwrap();
     }
 
-
     #[test]
     fn dist_poprf() {
         let mut rng = rand::thread_rng();
@@ -377,7 +379,7 @@ mod tests {
         let tag = "Bob";
         let t = 5;
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
-        let private_wrong = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng); 
+        let private_wrong = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
         let public = private.commit::<<G2Scheme as Scheme>::Public>();
         let public_key = public.public_key();
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
