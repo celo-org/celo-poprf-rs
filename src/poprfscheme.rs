@@ -153,9 +153,7 @@ where
                 index: p.index,
             })
             .collect::<Vec<Share<C::Evaluation>>>();
-        println!("partials: {:?}", &partials);
         let res = C::aggregate(threshold, &vec)?;
-        println!("aggregate: {:?}", &res);
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
             .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
@@ -175,6 +173,17 @@ mod tests {
     use rand_core::SeedableRng;
 
     type G2Scheme = crate::poprf::G2Scheme<bls377>;
+
+    #[test]
+    fn eval() {
+        let mut rng = ChaCha8Rng::seed_from_u64(2);
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let (private, _) = G2Scheme::keypair(&mut rng);
+        let result = G2Scheme::eval(&private, tag.as_bytes(), msg.as_bytes()).unwrap();
+        let expected_result = [151, 205, 148, 96, 202, 50, 200, 245, 255, 47, 156, 23, 121, 48, 42, 74, 231, 208, 239, 211, 82, 232, 45, 2, 181, 83, 52, 224, 54, 232, 143, 114];
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn blind_and_unblind() {
@@ -300,16 +309,6 @@ mod tests {
         .unwrap();
     }
 
-    #[test]
-    fn eval() {
-        let mut rng = ChaCha8Rng::seed_from_u64(2);
-        let msg = "Hello World!";
-        let tag = "Bob";
-        let (private, _) = G2Scheme::keypair(&mut rng);
-        let result = G2Scheme::eval(&private, tag.as_bytes(), msg.as_bytes()).unwrap();
-        let expected_result = [151, 205, 148, 96, 202, 50, 200, 245, 255, 47, 156, 23, 121, 48, 42, 74, 231, 208, 239, 211, 82, 232, 45, 2, 181, 83, 52, 224, 54, 232, 143, 114];
-        assert_eq!(result, expected_result);
-    }
 
     #[test]
     fn dist_poprf() {
@@ -339,5 +338,64 @@ mod tests {
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
 
         assert_eq!(&agg_result, &result);
+    }
+
+    #[test]
+    #[should_panic]
+    fn blind_agg_not_enough_shares() {
+        let mut rng = rand::thread_rng();
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let t = 5;
+        let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
+        let public = private.commit::<<G2Scheme as Scheme>::Public>();
+        let public_key = public.public_key();
+        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::BlindPartialResp>::new();
+        for i in 1..t {
+            let eval = private.eval(i.try_into().unwrap());
+            let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
+                private: eval.value,
+                index: eval.index,
+            };
+            let partial_resp =
+                G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
+            partial_resps.push(partial_resp);
+        }
+        let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
+        let _agg_result =
+            G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+        let agg_key = private.get(0);
+        let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn dist_poprf_wrong_keys() {
+        let mut rng = rand::thread_rng();
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let t = 5;
+        let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
+        let private_wrong = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng); 
+        let public = private.commit::<<G2Scheme as Scheme>::Public>();
+        let public_key = public.public_key();
+        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::BlindPartialResp>::new();
+        for i in 1..t + 1 {
+            let eval = private_wrong.eval(i.try_into().unwrap());
+            let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
+                private: eval.value,
+                index: eval.index,
+            };
+            let partial_resp =
+                G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
+            partial_resps.push(partial_resp);
+        }
+        let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
+        let _agg_result =
+            G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+        let agg_key = private.get(0);
+        let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
     }
 }

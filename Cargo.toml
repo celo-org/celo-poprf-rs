@@ -39,8 +39,7 @@ wasm-bindgen = { version = "0.2.60", optional = true }
 console_error_panic_hook = { version = "0.1.7", optional = true }
 
 # TODO: Once that branch is merged into `master`, change the targeted branch.
-#threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
-threshold-bls = { path = "/Users/michaelstraka/celo-threshold-bls-rs/crates/threshold-bls" }
+threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
 thiserror = "1.0.15"
 
 
