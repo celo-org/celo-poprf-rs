@@ -213,8 +213,7 @@ mod tests {
         let tag = "Bob";
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
-        let _result =
-            G2Scheme::unblind_resp(&public, &token, tag.as_bytes(), &blind_resp).unwrap();
+        let _result = G2Scheme::unblind_resp(&public, &token, tag.as_bytes(), &blind_resp).unwrap();
     }
 
     #[test]
