@@ -197,7 +197,7 @@ mod tests {
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
         let unblind_result =
-            G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
+            G2Scheme::unblind_resp(&public, &token, tag.as_bytes(), &blind_resp).unwrap();
         let result = G2Scheme::eval(&private, tag.as_bytes(), msg.as_bytes()).unwrap();
         assert_eq!(&unblind_result, &result);
     }
@@ -214,7 +214,7 @@ mod tests {
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let blind_resp = G2Scheme::blind_eval(&private, tag.as_bytes(), &blindmsg).unwrap();
         let _result =
-            G2Scheme::unblind_resp(&public, &token, &tag.as_bytes(), &blind_resp).unwrap();
+            G2Scheme::unblind_resp(&public, &token, tag.as_bytes(), &blind_resp).unwrap();
     }
 
     #[test]
@@ -275,7 +275,7 @@ mod tests {
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let private_key = Share {
             private: private.eval(index).value,
-            index: index,
+            index,
         };
         let blind_partial_resp =
             G2Scheme::blind_partial_eval(&private_key, tag.as_bytes(), &blindmsg).unwrap();
@@ -297,7 +297,7 @@ mod tests {
         let (private, _) = G2Scheme::keypair(&mut rng);
         let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let partial_key = Share {
-            private: private,
+            private,
             index: idx,
         };
         let blind_partial_resp =
@@ -335,7 +335,7 @@ mod tests {
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let agg_result =
-            G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+            G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
 
@@ -366,7 +366,7 @@ mod tests {
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let _agg_result =
-            G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+            G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
         let agg_key = private.get(0);
         let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
     }
@@ -396,7 +396,7 @@ mod tests {
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let _agg_result =
-            G2Scheme::unblind_resp(&public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+            G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
         let agg_key = private.get(0);
         let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
     }
