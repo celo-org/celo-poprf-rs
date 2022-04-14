@@ -9,6 +9,34 @@ pub use threshold_bls::{
     sig::Share,
 };
 
+pub trait PrfScheme: Scheme {
+    type Error: Error;
+ 
+    /// Evaluates the PRF on the given plaintext tag and message input.
+    ///
+    /// Will result in the same value as calling `blind_msg`, `blind_eval`, `unblind_resp` in sequence.
+    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, <Self as PrfScheme>::Error>;
+}
+
+pub trait ThresholdScheme: PrfScheme {
+    type Error: Error;
+
+    /// The partial response type
+    type PartialResp: Serialize + DeserializeOwned;
+
+    /// Evaluates the POPRF over a message and tag with a share of the private key.
+    fn partial_eval(
+        private: &Share<Self::Private>,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Self::PartialResp, <Self as ThresholdScheme>::Error>;
+
+    /// Aggregates all partials signature together. Note that this method does
+    /// not verify if the partial signatures are correct or not; it only
+    /// aggregates them.
+    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>; 
+}
+
 pub trait PoprfScheme: Scheme {
     type Error: Error;
 
@@ -44,20 +72,6 @@ pub trait PoprfScheme: Scheme {
         tag: &[u8],
         resp: &Self::BlindResp,
     ) -> Result<Vec<u8>, Self::Error>;
-
-    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error>;
-
-    /// Evaluates the POPRF over a message and tag with a share of the private key.
-    fn partial_eval(
-        private: &Share<Self::Private>,
-        tag: &[u8],
-        msg: &[u8],
-    ) -> Result<Self::PartialResp, Self::Error>;
-
-    /// Aggregates all partials signature together. Note that this method does
-    /// not verify if the partial signatures are correct or not; it only
-    /// aggregates them.
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error>;
 
     fn blind_partial_eval(
         private: &Share<Self::Private>,

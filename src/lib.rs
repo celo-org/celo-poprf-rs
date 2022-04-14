@@ -7,7 +7,6 @@ pub mod ffi;
 mod hash_to_field;
 mod poprf;
 mod poprfscheme;
-mod prf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

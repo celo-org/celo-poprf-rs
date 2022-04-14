@@ -1,4 +1,4 @@
-use crate::api::PoprfScheme;
+use crate::api::{PrfScheme, ThresholdScheme, PoprfScheme};
 use crate::poprf::Poprf;
 use crate::PoprfError;
 use bls_crypto::hashers::{DirectHasher, Hasher};
@@ -13,6 +13,59 @@ use threshold_bls::{
 /// 8-byte constant hashing domain for the evaluation result hashing.
 const NIZK_HASH_DOMAIN: &[u8] = b"PRFEVALH";
 const HASH_OUTPUT_BYTES: usize = 32;
+
+impl<C> PrfScheme for C
+where
+    C: Poprf + Debug
+{
+    type Error = PoprfError;
+
+    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, <Self as PrfScheme>::Error> {
+        let res = C::eval(private, tag, msg)?;
+        let serialized = bincode::serialize(&res)?;
+        let res_hash = DirectHasher
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
+            .map_err(|_e| PoprfError::HashingError)?;
+
+        Ok(res_hash)
+    }
+}
+
+impl<C> ThresholdScheme for C
+where
+    C: Poprf + Debug
+{
+    type Error = PoprfError;
+    type PartialResp = Share<C::Evaluation>;
+
+    fn partial_eval(
+        private: &Share<Self::Private>,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Self::PartialResp, <Self as ThresholdScheme>::Error> {
+        let res = C::eval(&private.private, tag, msg)?;
+        Ok(Share {
+            private: res,
+            index: private.index,
+        })
+    }
+
+    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error> {
+        let vec = partials
+            .iter()
+            .map(|p| Share {
+                private: p.private.clone(),
+                index: p.index,
+            })
+            .collect::<Vec<Share<C::Evaluation>>>();
+        let res = C::aggregate(threshold, &vec)?;
+        let serialized = bincode::serialize(&res)?;
+        let res_hash = DirectHasher
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
+            .map_err(|_e| PoprfError::HashingError)?;
+        Ok(res_hash)
+    }
+}
 
 impl<C> PoprfScheme for C
 where
@@ -122,49 +175,11 @@ where
         let B = C::aggregate(threshold, &B_vec)?;
         Ok((A, B))
     }
-
-    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error> {
-        let res = C::eval(private, tag, msg)?;
-        let serialized = bincode::serialize(&res)?;
-        let res_hash = DirectHasher
-            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| PoprfError::HashingError)?;
-
-        Ok(res_hash)
-    }
-
-    fn partial_eval(
-        private: &Share<Self::Private>,
-        tag: &[u8],
-        msg: &[u8],
-    ) -> Result<Self::PartialResp, Self::Error> {
-        let res = C::eval(&private.private, tag, msg)?;
-        Ok(Share {
-            private: res,
-            index: private.index,
-        })
-    }
-
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error> {
-        let vec = partials
-            .iter()
-            .map(|p| Share {
-                private: p.private.clone(),
-                index: p.index,
-            })
-            .collect::<Vec<Share<C::Evaluation>>>();
-        let res = C::aggregate(threshold, &vec)?;
-        let serialized = bincode::serialize(&res)?;
-        let res_hash = DirectHasher
-            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| PoprfError::HashingError)?;
-        Ok(res_hash)
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::PoprfScheme;
+    use crate::api::{PrfScheme, ThresholdScheme, PoprfScheme};
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Poly, Share};
     use rand_chacha::ChaCha8Rng;
