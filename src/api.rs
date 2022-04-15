@@ -11,11 +11,15 @@ pub use threshold_bls::{
 
 pub trait PrfScheme: Scheme {
     type Error: Error;
- 
+
     /// Evaluates the PRF on the given plaintext tag and message input.
     ///
     /// Will result in the same value as calling `blind_msg`, `blind_eval`, `unblind_resp` in sequence.
-    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, <Self as PrfScheme>::Error>;
+    fn eval(
+        private: &Self::Private,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Vec<u8>, <Self as PrfScheme>::Error>;
 }
 
 pub trait ThresholdScheme: PrfScheme {
@@ -34,7 +38,10 @@ pub trait ThresholdScheme: PrfScheme {
     /// Aggregates all partials signature together. Note that this method does
     /// not verify if the partial signatures are correct or not; it only
     /// aggregates them.
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>; 
+    fn aggregate(
+        threshold: usize,
+        partials: &[Self::PartialResp],
+    ) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error>;
 }
 
 pub trait PoprfScheme: Scheme {

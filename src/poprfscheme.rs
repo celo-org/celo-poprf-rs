@@ -1,4 +1,4 @@
-use crate::api::{PrfScheme, ThresholdScheme, PoprfScheme};
+use crate::api::{PoprfScheme, PrfScheme, ThresholdScheme};
 use crate::poprf::Poprf;
 use crate::PoprfError;
 use bls_crypto::hashers::{DirectHasher, Hasher};
@@ -16,11 +16,15 @@ const HASH_OUTPUT_BYTES: usize = 32;
 
 impl<C> PrfScheme for C
 where
-    C: Poprf + Debug
+    C: Poprf + Debug,
 {
     type Error = PoprfError;
 
-    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, <Self as PrfScheme>::Error> {
+    fn eval(
+        private: &Self::Private,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Vec<u8>, <Self as PrfScheme>::Error> {
         let res = C::eval(private, tag, msg)?;
         let serialized = bincode::serialize(&res)?;
         let res_hash = DirectHasher
@@ -33,7 +37,7 @@ where
 
 impl<C> ThresholdScheme for C
 where
-    C: Poprf + Debug
+    C: Poprf + Debug,
 {
     type Error = PoprfError;
     type PartialResp = Share<C::Evaluation>;
@@ -50,7 +54,10 @@ where
         })
     }
 
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error> {
+    fn aggregate(
+        threshold: usize,
+        partials: &[Self::PartialResp],
+    ) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error> {
         let vec = partials
             .iter()
             .map(|p| Share {
@@ -179,7 +186,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{PrfScheme, ThresholdScheme, PoprfScheme};
+    use crate::api::{PoprfScheme, PrfScheme, ThresholdScheme};
     use crate::poprf::Scheme;
     use crate::poprfscheme::{Poly, Share};
     use rand_chacha::ChaCha8Rng;
