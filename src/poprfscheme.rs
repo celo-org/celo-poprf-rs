@@ -246,7 +246,7 @@ mod tests {
         let tag = "Bob";
         let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::PartialResp>::new();
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
-        for i in 0..t {
+        for i in 1..t+1 {
             let key = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
                 private: key.value,
@@ -257,6 +257,8 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let agg_result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+
+        // Poly.get(0) returns the constant term, which is the aggregated private key.
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
 
@@ -357,6 +359,8 @@ mod tests {
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let agg_result =
             G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+        
+        // Poly.get(0) returns the constant term, which is the aggregated private key.
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
 
@@ -388,8 +392,6 @@ mod tests {
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let _agg_result =
             G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
-        let agg_key = private.get(0);
-        let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
     }
 
     #[test]
@@ -418,7 +420,5 @@ mod tests {
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let _agg_result =
             G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
-        let agg_key = private.get(0);
-        let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
     }
 }
