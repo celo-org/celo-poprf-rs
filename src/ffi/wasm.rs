@@ -9,7 +9,7 @@ use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
 
 use crate::{
-    api::{Idx, Poly, PoprfScheme, Share},
+    api::{Idx, Poly, PoprfScheme, PrfScheme, Share, ThresholdScheme},
     ffi::{BLIND_PARTIAL_RESPONSE_LENGTH, PARTIAL_RESPONSE_LENGTH},
     poprf::Scheme,
     BlindMsg, BlindPartialResp, BlindResp, PartialResp, Poprf, PrivateKey, PublicKey, Token,
