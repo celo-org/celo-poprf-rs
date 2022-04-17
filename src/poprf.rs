@@ -273,23 +273,37 @@ where
         d: &Self::Private,
     ) -> Result<Self::Evaluation, PoprfError> {
         // y_A = A^(r^(-1))
-        let r_inv = r.inverse().ok_or(PoprfError::NoInverse)?;
-        let mut y_A = A.clone();
-        y_A.mul(&r_inv);
+        let y_A = {
+            let r_inv = r.inverse().ok_or(PoprfError::NoInverse)?;
+            let mut y_A = A.clone();
+            y_A.mul(&r_inv);
+            y_A
+        };
 
-        let mut h = C::G1::new();
-        h.map(t).map_err(|_| PoprfError::HashingError)?;
+        // h = H_1(t)
+        let h = {
+            let mut h = C::G1::new();
+            h.map(t).map_err(|_| PoprfError::HashingError)?;
+            h
+        };
+
         // y_B <- B^(c^(-1)) e(H1(t), v^(-dc^(-1)))
-        let c_inv = c.inverse().ok_or(PoprfError::NoInverse)?;
-        let mut vdc = v.clone();
-        let mut dc = d.clone();
-        dc.mul(&c_inv);
-        dc.negate();
-        vdc.mul(&dc);
+        let y_B = {
+            let c_inv = c.inverse().ok_or(PoprfError::NoInverse)?;
 
-        let mut y_B = B.clone();
-        y_B.mul(&c_inv);
-        y_B.add(&C::pair(&h, &vdc));
+            let mut dc = d.clone();
+            dc.mul(&c_inv);
+            dc.negate();
+
+            let mut vdc = v.clone();
+            vdc.mul(&dc);
+
+            let mut y_B = B.clone();
+            y_B.mul(&c_inv);
+            y_B.add(&C::pair(&h, &vdc));
+            y_B
+        };
+
         if y_A != y_B {
             return Err(PoprfError::VerifyError);
         }
