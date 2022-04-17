@@ -23,13 +23,13 @@ ark-std = { version = "0.3.0" }
 bls-crypto = { git = "https://github.com/celo-org/bls-crypto" }
 hex = "0.4.3"
 rand_core = { version = "0.6.3", default-features = false }
-rand_chacha = { version = "0.3.1", default-features = false }
 log = "0.4.14"
 rand = "0.8.5"
 serde = { version = "1.0.106", features = ["derive"] }
 
 # Required for WASM interface
 getrandom = { version = "0.2", default-features = false, optional = true }
+rand_chacha = { version = "0.3.1", default-features = false, optional = true }
 wasm-bindgen = { version = "0.2.60", optional = true }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -42,10 +42,12 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", branch = "straka/arkworks_minus_cli" }
 thiserror = "1.0.15"
 
+[dev-dependencies]
+rand_chacha = { version = "0.3.1", default-features = false }
 
 [features]
 # Build WASM bindings for use in JS environments
-wasm = ["wasm-bindgen", "getrandom/js" ]
+wasm = ["wasm-bindgen", "getrandom/js", "rand_chacha"]
 
 # Include a panic hook for printing panic messages to the JS console.
 wasm-debug = ["wasm", "console_error_panic_hook"]
