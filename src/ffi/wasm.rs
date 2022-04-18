@@ -1,7 +1,7 @@
 //! # BLS12-377 WASM Bindings for the POPRF
 use wasm_bindgen::prelude::*;
 
-#[cfg(feature = "console_error_panic_hook")]
+#[cfg(feature = "wasm-debug")]
 use console_error_panic_hook;
 
 use bls_crypto::{hashers::DirectHasher, Hasher};
@@ -10,10 +10,12 @@ use rand_core::{RngCore, SeedableRng};
 
 use crate::{
     api::{Idx, Poly, PoprfScheme, PrfScheme, Share, ThresholdScheme},
-    ffi::{BLIND_PARTIAL_RESPONSE_LENGTH, PARTIAL_RESPONSE_LENGTH},
     poprf::Scheme,
     BlindMsg, BlindPartialResp, BlindResp, PartialResp, Poprf, PrivateKey, PublicKey, Token,
 };
+
+const PARTIAL_RESPONSE_LENGTH: usize = 580; // G_T element plus a u32 index.
+const BLIND_PARTIAL_RESPONSE_LENGTH: usize = 1156; // 2 G_T elements plus a u32 index.
 
 type Result<T> = std::result::Result<T, JsValue>;
 

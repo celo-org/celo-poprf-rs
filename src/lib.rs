@@ -1,7 +1,4 @@
 pub mod api;
-
-// Note: This conditionally should be removed when/if C FFI is added.
-#[cfg(feature = "wasm")]
 pub mod ffi;
 
 mod hash_to_field;

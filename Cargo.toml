@@ -37,6 +37,7 @@ wasm-bindgen = { version = "0.2.60", optional = true }
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for
 # code size when deploying.
 console_error_panic_hook = { version = "0.1.7", optional = true }
+web-sys = { version = "0.3.57", optional = true }
 
 # TODO: Once that branch is merged into `master`, change the targeted branch.
 threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", rev = "18139d7dadf67b59d75aeefe2ad0c171850c4a12" }
@@ -49,8 +50,9 @@ rand_chacha = { version = "0.3.1", default-features = false }
 # Build WASM bindings for use in JS environments
 wasm = ["wasm-bindgen", "getrandom/js", "rand_chacha"]
 
-# Include a panic hook for printing panic messages to the JS console.
-wasm-debug = ["wasm", "console_error_panic_hook"]
+# Include a panic hook for printing panic messages to the JS console and web_sys support for adding
+# console::log statements.
+wasm-debug = ["wasm", "console_error_panic_hook", "web-sys/console"]
 
 # Enable parallel computation in arkworks code. Cannot be used with WASM.
 parallel = ["ark-ec/parallel", "ark-ff/parallel", "bls-crypto/parallel", "threshold-bls/parallel"]

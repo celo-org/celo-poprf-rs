@@ -178,6 +178,7 @@ where
                 index: p.index,
             })
             .collect::<Vec<Share<C::Evaluation>>>();
+
         let A = C::aggregate(threshold, &A_vec)?;
         let B = C::aggregate(threshold, &B_vec)?;
         Ok((A, B))
@@ -363,7 +364,6 @@ mod tests {
         // Poly.get(0) returns the constant term, which is the aggregated private key.
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
-
         assert_eq!(&agg_result, &result);
     }
 
@@ -375,9 +375,7 @@ mod tests {
         let tag = "Bob";
         let t = 5;
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
-        let public = private.commit::<<G2Scheme as Scheme>::Public>();
-        let public_key = public.public_key();
-        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let (_token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::BlindPartialResp>::new();
         for i in 1..t {
             let eval = private.eval(i.try_into().unwrap());
@@ -389,9 +387,9 @@ mod tests {
                 G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
             partial_resps.push(partial_resp);
         }
-        let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
-        let _agg_result =
-            G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+
+        // Should panic due to unwrap on error due to not enough shares.
+        let _blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
     }
 
     #[test]
@@ -418,6 +416,8 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
+
+        // Should panic due to unwrap on verifiation error.
         let _agg_result =
             G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
     }
