@@ -9,8 +9,7 @@ use rand_chacha::ChaChaRng;
 use rand_core::{RngCore, SeedableRng};
 
 use crate::{
-    api::{Idx, Poly, PoprfScheme, PrfScheme, Share, ThresholdScheme},
-    poprf::Scheme,
+    api::{Poly, PoprfScheme, PrfScheme, Scheme, Share, ThresholdScheme},
     BlindMsg, BlindPartialResp, BlindResp, PartialResp, Poprf, PrivateKey, PublicKey, Token,
 };
 
@@ -32,6 +31,8 @@ fn init_panic_hook() {
 
 #[wasm_bindgen(js_name = blindMsg)]
 /// Given a message and a seed, it will blind it and return the blinded message
+///
+/// # Arguments
 ///
 /// * message: A cleartext message which you want to blind
 /// * seed: A 32 byte seed for randomness. You can get one securely via `crypto.randomBytes(32)`
@@ -64,6 +65,8 @@ pub fn blind_msg(message: &[u8], seed: &[u8]) -> Result<BlindedMessage> {
 #[wasm_bindgen(js_name = unblindResp)]
 /// Given a blinded evaluation response, the blinding_factor from when the message was blinded, a
 /// public key and a tag, it unblinds and verifies the evaluation, returning the result.
+///
+/// # Arguments
 ///
 /// * public_key: Public key against which the response should be verified.
 /// * blinding_factor: The blinding_factor used to blind the message.
@@ -102,10 +105,14 @@ pub fn unblind_resp(
 /// blinded, a public key and a tag, it unblinds and verifies the evaluation, returning the partial
 /// response which can then be aggregated.
 ///
+/// # Arguments
+///
 /// * polynomial: Public key polynomial against which the response should be verified.
 /// * blinding_factor: The blinding_factor used to blind the message.
 /// * tag: Message tag passed into the evaluation of the POPRF.
 /// * blinded_partial_resp: A blinded POPRF partial evaluation response over the message and tag.
+///
+/// Returns the unblinded evaluation share.
 ///
 /// # Throws
 ///
@@ -165,6 +172,14 @@ pub fn eval(private_key_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8
 /// Evaluates the POPRF over the blinded message and plaintext tag with the provided private key
 /// and returns the blinded response
 ///
+/// # Arguments
+///
+/// * private_key: Private key to be used in evaluating the POPRF.
+/// * tag: Message tag passed into the evaluation of the POPRF.
+/// * blinded_message: Blinded message input containing the hidden message.
+///
+/// Returns the blinded evaluation over the tag and blinded message.
+///
 /// # Throws
 ///
 /// - If any of the inputs fail to deserialize.
@@ -194,13 +209,23 @@ pub fn blind_eval(
 /// Evaluates the POPRF over the plaintext message and tag with the provided **share** of the
 /// private key and returns the **partial** evaluation.
 ///
+/// # Arguments
+///
+/// * share: Private key share to be used in evaluating the POPRF.
+/// * tag: Message tag passed into the evaluation of the POPRF.
+/// * message: Plaintext message input.
+///
+/// Returns a share of the evaluation over the tag and message.
+///
 /// # Throws
 ///
 /// - If any of the inputs fail to deserialize.
 /// - If the evaluation fails.
 ///
-/// NOTE: This method must NOT be called with a PrivateKey which is not generated via a
-/// secret sharing scheme.
+/// # Safety
+///
+/// In order for the decentralized security properties of the system to hold, the private key
+/// share input must be derived using a secure distributed key generation ceremony.
 pub fn partial_eval(share_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<u8>> {
     init_panic_hook();
 
@@ -220,13 +245,23 @@ pub fn partial_eval(share_buf: &[u8], tag: &[u8], message: &[u8]) -> Result<Vec<
 /// Evaluates the POPRF over the blinded message and plaintext tag with the provided **share** of
 /// the private key and returns the **partial** evaluation.
 ///
+/// # Arguments
+///
+/// * share: Private key share to be used in evaluating the POPRF.
+/// * tag: Message tag passed into the evaluation of the POPRF.
+/// * blinded_message: Blinded message input containing the hidden message.
+///
+/// Returns a share of the blinded evaluation over the tag and blinded message.
+///
 /// # Throws
 ///
 /// - If any of the inputs fail to deserialize.
 /// - If the evaluation fails.
 ///
-/// NOTE: This method must NOT be called with a PrivateKey which is not generated via a
-/// secret sharing scheme.
+/// # Safety
+///
+/// In order for the decentralized security properties of the system to hold, the private key
+/// share input must be derived using a secure distributed key generation ceremony.
 pub fn blind_partial_eval(
     share_buf: &[u8],
     tag: &[u8],
@@ -257,11 +292,25 @@ pub fn blind_partial_eval(
 #[wasm_bindgen]
 /// Aggregates a flattened vector of partial evaluations to a single threshold evaluation.
 ///
-/// NOTE: Wasm-bindgen does not support Vec<Vec<u8>>, so this function accepts a flattened
-/// byte vector which it will parse in chunks for each signature.
+/// # Arguments
 ///
-/// NOTE: If you are working with an array of Uint8Arrays In Javascript, the simplest
-/// way to flatten them is via:
+/// * threshold: The required number of evluation shares to reconstruct the full response.
+/// * evaluations: A flattened array of plaintext partial evaluations.
+///
+/// Returns the aggregated plaintext evaluation response.
+///
+/// # Throws
+///
+/// - If any of the inputs fail to deserialize.
+/// - If the aggregation fails.
+///
+/// # Note
+///
+/// Wasm-bindgen does not support Vec<Vec<u8>>, so this function accepts a flattened byte vector
+/// which it will parse in chunks for each signature.
+///
+/// If you are working with an array of Uint8Arrays In Javascript, the simplest way to flatten them
+/// is via:
 ///
 /// ```js
 /// function flatten(arr) {
@@ -270,11 +319,6 @@ pub fn blind_partial_eval(
 ///     }, []));
 /// }
 /// ```
-///
-/// # Throws
-///
-/// - If any of the inputs fail to deserialize.
-/// - If the aggregation fails.
 pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
     init_panic_hook();
 
@@ -296,11 +340,25 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
 /// Aggregates a flattened vector of blind partial evaluations to a single blind threshold
 /// evaluation.
 ///
-/// NOTE: Wasm-bindgen does not support Vec<Vec<u8>>, so this function accepts a flattened
-/// byte vector which it will parse in chunks for each signature.
+/// # Arguments
 ///
-/// NOTE: If you are working with an array of Uint8Arrays In Javascript, the simplest
-/// way to flatten them is via:
+/// * threshold: The required number of evluation shares to reconstruct the full response.
+/// * blinded_evaluations: A flattened array of blind partial evaluations.
+///
+/// Returns the aggregated blind evaluation response.
+///
+/// # Throws
+///
+/// - If any of the inputs fail to deserialize.
+/// - If the aggregation fails.
+///
+/// # Note
+///
+/// Wasm-bindgen does not support Vec<Vec<u8>>, so this function accepts a flattened byte vector
+/// which it will parse in chunks for each signature.
+///
+/// If you are working with an array of Uint8Arrays In Javascript, the simplest way to flatten them
+/// is via:
 ///
 /// ```js
 /// function flatten(arr) {
@@ -309,11 +367,6 @@ pub fn aggregate(threshold: usize, evaluations_buf: &[u8]) -> Result<Vec<u8>> {
 ///     }, []));
 /// }
 /// ```
-///
-/// # Throws
-///
-/// - If any of the inputs fail to deserialize.
-/// - If the aggregation fails.
 pub fn blind_aggregate(threshold: usize, blinded_evaluations_buf: &[u8]) -> Result<Vec<u8>> {
     init_panic_hook();
 
@@ -352,15 +405,7 @@ pub fn threshold_keygen(n: usize, t: usize, seed: &[u8]) -> Result<Keys> {
     init_panic_hook();
 
     let mut rng = get_rng(&[seed])?;
-    let private = Poly::<PrivateKey>::new_from(t - 1, &mut rng);
-    let shares = (1..n + 1)
-        .map(|i| private.eval(i as Idx))
-        .map(|e| Share {
-            index: e.index,
-            private: e.value,
-        })
-        .collect();
-    let polynomial = private.commit();
+    let (shares, polynomial) = Poprf::threshold_keygen(n, t, &mut rng);
 
     Ok(Keys {
         shares,

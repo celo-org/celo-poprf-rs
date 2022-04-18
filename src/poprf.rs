@@ -1,8 +1,10 @@
-use crate::hash_to_field::{HashToField, TryAndIncrement};
-use crate::PoprfError;
+use crate::{
+    api::Scheme,
+    hash_to_field::{HashToField, TryAndIncrement},
+    PoprfError,
+};
 use bls_crypto::hashers::DirectHasher;
 use rand::RngCore;
-use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
     group::{Element, PairingCurve, Point, Scalar},
@@ -12,31 +14,6 @@ use threshold_bls::{
 
 /// 8-byte constant hashing domain for the proof of related query subprotocol.
 const NIZK_HASH_DOMAIN: &[u8] = b"PoRQH2FF";
-
-/// The `Scheme` trait contains the basic information of the groups over which the PRF operations
-/// takes places and a way to create a valid key pair.
-///
-/// The Scheme trait is necessary to implement for "simple" tagged PRF scheme as well for threshold
-/// based POPRF scheme.
-pub trait Scheme: Debug {
-    /// `Private` represents the field over which private keys are represented.
-    type Private: Scalar<RHS = Self::Private>;
-    /// `Public` represents the group over which the public keys are
-    /// represented.
-    type Public: Point<RHS = Self::Private> + Serialize + DeserializeOwned;
-    /// `Evaluation` represents the group over which the evaluations are reresented.
-    type Evaluation: Element<RHS = Self::Private> + Serialize + DeserializeOwned;
-
-    // Returns a new fresh keypair usable by the scheme.
-    fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {
-        let private = Self::Private::rand(rng);
-
-        let mut public = Self::Public::one();
-        public.mul(&private);
-
-        (private, public)
-    }
-}
 
 pub trait Poprf: Scheme {
     // TODO(victor): Figure out how to refactor to avoid this complex return type.

@@ -187,8 +187,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{PoprfScheme, PrfScheme, ThresholdScheme};
-    use crate::poprf::Scheme;
+    use crate::api::{PoprfScheme, PrfScheme, Scheme, ThresholdScheme};
     use crate::poprfscheme::{Poly, Share};
     use rand_chacha::ChaCha8Rng;
     use rand_core::SeedableRng;

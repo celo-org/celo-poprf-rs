@@ -43,7 +43,7 @@ pub mod bls12_377 {
     pub type G2Scheme = super::poprf::G2Scheme<PairingCurve>;
 }
 
-use crate::{api::PoprfScheme, poprf::Scheme};
+use crate::api::{PoprfScheme, Scheme};
 
 pub type Poprf = bls12_377::G2Scheme;
 

@@ -5,7 +5,7 @@ pub mod wasm;
 compile_error!("feature \"wasm\" and feature \"parrallel\" cannot be used together as WASM does not support threads.");
 
 /// A println! style macro to allow output to the JS console.
-/// ```rust
+/// ```ignore
 /// crate::ffi::console_log!("hello from {}", "rust!");
 /// ```
 #[macro_export]
