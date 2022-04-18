@@ -1,8 +1,10 @@
-use crate::hash_to_field::{HashToField, TryAndIncrement};
-use crate::PoprfError;
+use crate::{
+    api::Scheme,
+    hash_to_field::{HashToField, TryAndIncrement},
+    PoprfError,
+};
 use bls_crypto::hashers::DirectHasher;
 use rand::RngCore;
-use serde::{de::DeserializeOwned, Serialize};
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
     group::{Element, PairingCurve, Point, Scalar},
@@ -12,31 +14,6 @@ use threshold_bls::{
 
 /// 8-byte constant hashing domain for the proof of related query subprotocol.
 const NIZK_HASH_DOMAIN: &[u8] = b"PoRQH2FF";
-
-/// The `Scheme` trait contains the basic information of the groups over which the PRF operations
-/// takes places and a way to create a valid key pair.
-///
-/// The Scheme trait is necessary to implement for "simple" tagged PRF scheme as well for threshold
-/// based POPRF scheme.
-pub trait Scheme: Debug {
-    /// `Private` represents the field over which private keys are represented.
-    type Private: Scalar<RHS = Self::Private>;
-    /// `Public` represents the group over which the public keys are
-    /// represented.
-    type Public: Point<RHS = Self::Private> + Serialize + DeserializeOwned;
-    /// `Evaluation` represents the group over which the evaluations are reresented.
-    type Evaluation: Element<RHS = Self::Private> + Serialize + DeserializeOwned;
-
-    // Returns a new fresh keypair usable by the scheme.
-    fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {
-        let private = Self::Private::rand(rng);
-
-        let mut public = Self::Public::one();
-        public.mul(&private);
-
-        (private, public)
-    }
-}
 
 pub trait Poprf: Scheme {
     // TODO(victor): Figure out how to refactor to avoid this complex return type.
@@ -273,23 +250,37 @@ where
         d: &Self::Private,
     ) -> Result<Self::Evaluation, PoprfError> {
         // y_A = A^(r^(-1))
-        let r_inv = r.inverse().ok_or(PoprfError::NoInverse)?;
-        let mut y_A = A.clone();
-        y_A.mul(&r_inv);
+        let y_A = {
+            let r_inv = r.inverse().ok_or(PoprfError::NoInverse)?;
+            let mut y_A = A.clone();
+            y_A.mul(&r_inv);
+            y_A
+        };
 
-        let mut h = C::G1::new();
-        h.map(t).map_err(|_| PoprfError::HashingError)?;
+        // h = H_1(t)
+        let h = {
+            let mut h = C::G1::new();
+            h.map(t).map_err(|_| PoprfError::HashingError)?;
+            h
+        };
+
         // y_B <- B^(c^(-1)) e(H1(t), v^(-dc^(-1)))
-        let c_inv = c.inverse().ok_or(PoprfError::NoInverse)?;
-        let mut vdc = v.clone();
-        let mut dc = d.clone();
-        dc.mul(&c_inv);
-        dc.negate();
-        vdc.mul(&dc);
+        let y_B = {
+            let c_inv = c.inverse().ok_or(PoprfError::NoInverse)?;
 
-        let mut y_B = B.clone();
-        y_B.mul(&c_inv);
-        y_B.add(&C::pair(&h, &vdc));
+            let mut dc = d.clone();
+            dc.mul(&c_inv);
+            dc.negate();
+
+            let mut vdc = v.clone();
+            vdc.mul(&dc);
+
+            let mut y_B = B.clone();
+            y_B.mul(&c_inv);
+            y_B.add(&C::pair(&h, &vdc));
+            y_B
+        };
+
         if y_A != y_B {
             return Err(PoprfError::VerifyError);
         }

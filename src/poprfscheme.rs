@@ -1,4 +1,4 @@
-use crate::api::PoprfScheme;
+use crate::api::{PoprfScheme, PrfScheme, ThresholdScheme};
 use crate::poprf::Poprf;
 use crate::PoprfError;
 use bls_crypto::hashers::{DirectHasher, Hasher};
@@ -13,6 +13,66 @@ use threshold_bls::{
 /// 8-byte constant hashing domain for the evaluation result hashing.
 const NIZK_HASH_DOMAIN: &[u8] = b"PRFEVALH";
 const HASH_OUTPUT_BYTES: usize = 32;
+
+impl<C> PrfScheme for C
+where
+    C: Poprf + Debug,
+{
+    type Error = PoprfError;
+
+    fn eval(
+        private: &Self::Private,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Vec<u8>, <Self as PrfScheme>::Error> {
+        let res = C::eval(private, tag, msg)?;
+        let serialized = bincode::serialize(&res)?;
+        let res_hash = DirectHasher
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
+            .map_err(|_e| PoprfError::HashingError)?;
+
+        Ok(res_hash)
+    }
+}
+
+impl<C> ThresholdScheme for C
+where
+    C: Poprf + Debug,
+{
+    type Error = PoprfError;
+    type PartialResp = Share<C::Evaluation>;
+
+    fn partial_eval(
+        private: &Share<Self::Private>,
+        tag: &[u8],
+        msg: &[u8],
+    ) -> Result<Self::PartialResp, <Self as ThresholdScheme>::Error> {
+        let res = C::eval(&private.private, tag, msg)?;
+        Ok(Share {
+            private: res,
+            index: private.index,
+        })
+    }
+
+    fn aggregate(
+        threshold: usize,
+        partials: &[Self::PartialResp],
+    ) -> Result<Vec<u8>, <Self as ThresholdScheme>::Error> {
+        let vec = partials
+            .iter()
+            .map(|p| Share {
+                private: p.private.clone(),
+                index: p.index,
+            })
+            .collect::<Vec<Share<C::Evaluation>>>();
+        let res = C::aggregate(threshold, &vec)?;
+        let serialized = bincode::serialize(&res)?;
+        let res_hash = DirectHasher
+            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
+            .map_err(|_e| PoprfError::HashingError)?;
+        Ok(res_hash)
+    }
+}
 
 impl<C> PoprfScheme for C
 where
@@ -118,54 +178,16 @@ where
                 index: p.index,
             })
             .collect::<Vec<Share<C::Evaluation>>>();
+
         let A = C::aggregate(threshold, &A_vec)?;
         let B = C::aggregate(threshold, &B_vec)?;
         Ok((A, B))
-    }
-
-    fn eval(private: &Self::Private, tag: &[u8], msg: &[u8]) -> Result<Vec<u8>, Self::Error> {
-        let res = C::eval(private, tag, msg)?;
-        let serialized = bincode::serialize(&res)?;
-        let res_hash = DirectHasher
-            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| PoprfError::HashingError)?;
-
-        Ok(res_hash)
-    }
-
-    fn partial_eval(
-        private: &Share<Self::Private>,
-        tag: &[u8],
-        msg: &[u8],
-    ) -> Result<Self::PartialResp, Self::Error> {
-        let res = C::eval(&private.private, tag, msg)?;
-        Ok(Share {
-            private: res,
-            index: private.index,
-        })
-    }
-
-    fn aggregate(threshold: usize, partials: &[Self::PartialResp]) -> Result<Vec<u8>, Self::Error> {
-        let vec = partials
-            .iter()
-            .map(|p| Share {
-                private: p.private.clone(),
-                index: p.index,
-            })
-            .collect::<Vec<Share<C::Evaluation>>>();
-        let res = C::aggregate(threshold, &vec)?;
-        let serialized = bincode::serialize(&res)?;
-        let res_hash = DirectHasher
-            .hash(NIZK_HASH_DOMAIN, &serialized[..], HASH_OUTPUT_BYTES)
-            .map_err(|_e| PoprfError::HashingError)?;
-        Ok(res_hash)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::PoprfScheme;
-    use crate::poprf::Scheme;
+    use crate::api::{PoprfScheme, PrfScheme, Scheme, ThresholdScheme};
     use crate::poprfscheme::{Poly, Share};
     use rand_chacha::ChaCha8Rng;
     use rand_core::SeedableRng;
@@ -224,7 +246,7 @@ mod tests {
         let tag = "Bob";
         let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::PartialResp>::new();
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
-        for i in 0..t {
+        for i in 1..t + 1 {
             let key = private.eval(i.try_into().unwrap());
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
                 private: key.value,
@@ -235,6 +257,8 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let agg_result = G2Scheme::aggregate(t, &partial_resps[..]).unwrap();
+
+        // Poly.get(0) returns the constant term, which is the aggregated private key.
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
 
@@ -249,7 +273,7 @@ mod tests {
         let msg = "Hello World!";
         let tag = "Bob";
         let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::PartialResp>::new();
-        for i in 0..t - 1 {
+        for i in 1..t {
             let (key, _) = G2Scheme::keypair(&mut rng);
             let partial_key: Share<<G2Scheme as Scheme>::Private> = Share {
                 private: key,
@@ -335,9 +359,10 @@ mod tests {
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
         let agg_result =
             G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
+
+        // Poly.get(0) returns the constant term, which is the aggregated private key.
         let agg_key = private.get(0);
         let result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
-
         assert_eq!(&agg_result, &result);
     }
 
@@ -349,9 +374,7 @@ mod tests {
         let tag = "Bob";
         let t = 5;
         let private = Poly::<<G2Scheme as Scheme>::Private>::new_from(t - 1, &mut rng);
-        let public = private.commit::<<G2Scheme as Scheme>::Public>();
-        let public_key = public.public_key();
-        let (token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
+        let (_token, blindmsg) = G2Scheme::blind_msg(msg.as_bytes(), &mut rng).unwrap();
         let mut partial_resps = Vec::<<G2Scheme as PoprfScheme>::BlindPartialResp>::new();
         for i in 1..t {
             let eval = private.eval(i.try_into().unwrap());
@@ -363,11 +386,9 @@ mod tests {
                 G2Scheme::blind_partial_eval(&partial_key, tag.as_bytes(), &blindmsg).unwrap();
             partial_resps.push(partial_resp);
         }
-        let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
-        let _agg_result =
-            G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
-        let agg_key = private.get(0);
-        let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
+
+        // Should panic due to unwrap on error due to not enough shares.
+        let _blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
     }
 
     #[test]
@@ -394,9 +415,9 @@ mod tests {
             partial_resps.push(partial_resp);
         }
         let blind_resp = G2Scheme::blind_aggregate(t, &partial_resps[..]).unwrap();
+
+        // Should panic due to unwrap on verifiation error.
         let _agg_result =
             G2Scheme::unblind_resp(public_key, &token, tag.as_bytes(), &blind_resp).unwrap();
-        let agg_key = private.get(0);
-        let _result = G2Scheme::eval(&agg_key, tag.as_bytes(), msg.as_bytes()).unwrap();
     }
 }
