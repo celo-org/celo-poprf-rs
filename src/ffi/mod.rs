@@ -4,10 +4,10 @@ pub mod wasm;
 #[cfg(all(feature = "wasm", feature = "parallel"))]
 compile_error!("feature \"wasm\" and feature \"parrallel\" cannot be used together as WASM does not support threads.");
 
-// A println! style macro to allow output to the JS console.
-// ```rust
-// crate::ffi::console_log!("hello from {}", "rust!");
-// ```
+/// A println! style macro to allow output to the JS console.
+/// ```rust
+/// crate::ffi::console_log!("hello from {}", "rust!");
+/// ```
 #[macro_export]
 macro_rules! console_log {
     ($($t:tt)*) => {
