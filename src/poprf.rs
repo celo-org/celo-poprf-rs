@@ -7,7 +7,7 @@ use bls_crypto::hashers::DirectHasher;
 use rand::RngCore;
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
-    group::{Element, PrimeOrder, PairingCurve, Point, Scalar},
+    group::{Element, PairingCurve, Point, PrimeOrder, Scalar},
     poly::{Eval, Poly},
     sig::Share,
 };
@@ -165,7 +165,7 @@ pub trait Poprf: Scheme {
         shares: &[Share<Self::Evaluation>],
     ) -> Result<Self::Evaluation, PoprfError> {
         for share in shares {
-            if !share.private.in_correct_subgroup() { 
+            if !share.private.in_correct_subgroup() {
                 return Err(PoprfError::WrongSubgroupError);
             }
         }
@@ -203,9 +203,11 @@ pub struct G2Scheme<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
-impl<C: PairingCurve> Scheme for G2Scheme<C> 
+// GT Needs to implement PrimeOrder because the underlying arkworks
+// trait does not enforce being in the correct prime order subgroup
+impl<C: PairingCurve> Scheme for G2Scheme<C>
 where
-    C::GT : PrimeOrder
+    C::GT: PrimeOrder,
 {
     type Private = C::Scalar;
     type Public = C::G2;
@@ -259,7 +261,7 @@ where
         d: &Self::Private,
     ) -> Result<Self::Evaluation, PoprfError> {
         if !A.in_correct_subgroup() || !B.in_correct_subgroup() {
-            return Err(PoprfError::WrongSubgroupError)
+            return Err(PoprfError::WrongSubgroupError);
         }
         // y_A = A^(r^(-1))
         let y_A = {

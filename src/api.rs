@@ -1,7 +1,7 @@
 use rand_core::RngCore;
-use threshold_bls::group::PrimeOrder;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, fmt::Debug};
+use threshold_bls::group::PrimeOrder;
 
 // Export polynomial library components used here so the caller may use them.
 pub use threshold_bls::{
