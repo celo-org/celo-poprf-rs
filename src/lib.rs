@@ -26,6 +26,9 @@ pub enum PoprfError {
     #[error("proof verification failed")]
     VerifyError,
 
+    #[error("element is in wrong subgroup")]
+    WrongSubgroupError,
+
     #[error("could not inverse")]
     NoInverse,
 }

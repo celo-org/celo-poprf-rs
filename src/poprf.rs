@@ -7,7 +7,7 @@ use bls_crypto::hashers::DirectHasher;
 use rand::RngCore;
 use std::{fmt::Debug, marker::PhantomData};
 use threshold_bls::{
-    group::{Element, PairingCurve, Point, Scalar},
+    group::{Element, PrimeOrder, PairingCurve, Point, Scalar},
     poly::{Eval, Poly},
     sig::Share,
 };
@@ -198,7 +198,10 @@ pub struct G2Scheme<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
-impl<C: PairingCurve> Scheme for G2Scheme<C> {
+impl<C: PairingCurve> Scheme for G2Scheme<C> 
+where
+    C::GT : PrimeOrder
+{
     type Private = C::Scalar;
     type Public = C::G2;
     type Evaluation = C::GT;
@@ -207,6 +210,7 @@ impl<C: PairingCurve> Scheme for G2Scheme<C> {
 impl<C> Poprf for G2Scheme<C>
 where
     C: PairingCurve,
+    C::GT: PrimeOrder,
 {
     #[allow(non_snake_case)]
     fn eval(k: &Self::Private, t: &[u8], m: &[u8]) -> Result<Self::Evaluation, PoprfError> {
@@ -249,6 +253,9 @@ where
         c: &Self::Private,
         d: &Self::Private,
     ) -> Result<Self::Evaluation, PoprfError> {
+        if !A.in_correct_subgroup() || !B.in_correct_subgroup() {
+            return Err(PoprfError::WrongSubgroupError)
+        }
         // y_A = A^(r^(-1))
         let y_A = {
             let r_inv = r.inverse().ok_or(PoprfError::NoInverse)?;
