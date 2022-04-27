@@ -164,6 +164,11 @@ pub trait Poprf: Scheme {
         threshold: usize,
         shares: &[Share<Self::Evaluation>],
     ) -> Result<Self::Evaluation, PoprfError> {
+        for share in shares {
+            if !share.private.in_correct_subgroup() { 
+                return Err(PoprfError::WrongSubgroupError);
+            }
+        }
         if threshold > shares.len() {
             return Err(PoprfError::NotEnoughResponses(shares.len(), threshold));
         }
