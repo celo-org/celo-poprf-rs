@@ -203,7 +203,7 @@ pub struct G2Scheme<C: PairingCurve> {
     m: PhantomData<C>,
 }
 
-// GT Needs to implement PrimeOrder because the underlying arkworks
+// GT Needs to implement PrimeOrder because the underlying threshold-bls
 // trait does not enforce being in the correct prime order subgroup
 impl<C: PairingCurve> Scheme for G2Scheme<C>
 where
@@ -300,5 +300,70 @@ where
         }
 
         Ok(y_A)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::api::Scheme;
+    use crate::poprf::Poly;
+    use crate::poprf::Poprf;
+    use crate::poprf::Share;
+    use crate::PoprfError;
+    use threshold_bls::curve::bls12377::PairingCurve as bls377;
+    use threshold_bls::group::Element;
+
+    type G2Scheme377 = crate::poprf::G2Scheme<bls377>;
+
+    macro_rules! assert_err {
+    ($expression:expr, $($pattern:tt)+) => {
+        match $expression {
+            $($pattern)+ => (),
+            ref e => panic!("expected `{}` but got `{:?}`", stringify!($($pattern)+), e),
+        }
+    }
+    }
+
+    #[test]
+    fn aggregate_wrong_subgroup() {
+        let mut rng = rand::thread_rng();
+        let t: usize = 3;
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let mut partial_evals = Vec::<Share<<G2Scheme377 as Scheme>::Evaluation>>::new();
+        let private = Poly::<<G2Scheme377 as Scheme>::Private>::new_from(t - 1, &mut rng);
+        let bad_eval = <G2Scheme377 as Scheme>::Evaluation::rand(&mut rng);
+        let bad_share = Share {
+            private: bad_eval,
+            index: 1,
+        };
+        partial_evals.push(bad_share);
+        for i in 2..t + 1 {
+            let key = private.eval(i.try_into().unwrap());
+            let partial_resp =
+                G2Scheme377::eval(&key.value, tag.as_bytes(), msg.as_bytes()).unwrap();
+            let partial_share = Share {
+                private: partial_resp,
+                index: key.index,
+            };
+            partial_evals.push(partial_share);
+        }
+        let agg_result = G2Scheme377::aggregate(t, &partial_evals[..]);
+        assert_err!(agg_result, Err(PoprfError::WrongSubgroupError));
+    }
+
+    #[test]
+    #[allow(non_snake_case)]
+    fn finalize_not_in_subgroup() {
+        let mut rng = rand::thread_rng();
+        let msg = "Hello World!";
+        let tag = "Bob";
+        let (private, public) = G2Scheme377::keypair(&mut rng);
+
+        let (r, c, d, a, b) = G2Scheme377::req(msg.as_bytes(), &mut rng).unwrap();
+        let (_A, B) = G2Scheme377::blind_ev(&private, tag.as_bytes(), &a, &b).unwrap();
+        let bad_val = <G2Scheme377 as Scheme>::Evaluation::rand(&mut rng);
+        let res = G2Scheme377::finalize(&public, &bad_val, &B, tag.as_bytes(), &r, &c, &d);
+        assert_err!(res, Err(PoprfError::WrongSubgroupError));
     }
 }
