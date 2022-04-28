@@ -1,6 +1,7 @@
 use rand_core::RngCore;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{error::Error, fmt::Debug};
+use threshold_bls::group::PrimeOrder;
 
 // Export polynomial library components used here so the caller may use them.
 pub use threshold_bls::{
@@ -21,7 +22,7 @@ pub trait Scheme: Debug {
     /// represented.
     type Public: Point<RHS = Self::Private> + Serialize + DeserializeOwned;
     /// `Evaluation` represents the group over which the evaluations are reresented.
-    type Evaluation: Element<RHS = Self::Private> + Serialize + DeserializeOwned;
+    type Evaluation: Element<RHS = Self::Private> + PrimeOrder + Serialize + DeserializeOwned;
 
     // Returns a new fresh keypair usable by the scheme.
     fn keypair<R: RngCore>(rng: &mut R) -> (Self::Private, Self::Public) {

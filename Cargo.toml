@@ -40,7 +40,7 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 web-sys = { version = "0.3.57", optional = true }
 
 # TODO: Once that branch is merged into `master`, change the targeted branch.
-threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", rev = "18139d7dadf67b59d75aeefe2ad0c171850c4a12" }
+threshold-bls = { git = "https://github.com/celo-org/celo-threshold-bls-rs", rev = "8e8e152e0bbff6d27c61b1fd61f9015ac93a0641" }
 thiserror = "1.0.15"
 
 [dev-dependencies]
