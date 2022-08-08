@@ -31,6 +31,7 @@ serde = { version = "1.0.106", features = ["derive"] }
 getrandom = { version = "0.2", default-features = false, optional = true }
 rand_chacha = { version = "0.3.1", default-features = false, optional = true }
 wasm-bindgen = { version = "0.2.60", optional = true }
+arbitrary = { version = "1", optional=true, features = ["derive"] }
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -45,6 +46,7 @@ thiserror = "1.0.15"
 
 [dev-dependencies]
 rand_chacha = { version = "0.3.1", default-features = false }
+arbitrary = { version = "1", features = ["derive"] }
 
 [features]
 # Build WASM bindings for use in JS environments
@@ -56,3 +58,6 @@ wasm-debug = ["wasm", "console_error_panic_hook", "web-sys/console"]
 
 # Enable parallel computation in arkworks code. Cannot be used with WASM.
 parallel = ["ark-ec/parallel", "ark-ff/parallel", "bls-crypto/parallel", "threshold-bls/parallel"]
+
+# Build fuzzing-specific components
+fuzzer = ["arbitrary/derive", "rand_chacha"]
