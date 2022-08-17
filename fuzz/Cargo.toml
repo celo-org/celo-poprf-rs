@@ -15,7 +15,7 @@ arbitrary = { version = "1", features = ["derive"] }
 
 [dependencies.poprf]
 path = ".."
-features = ["fuzzer"]
+features = ["fuzzer", "wasm"]
 
 # Prevent this from interfering with workspaces
 [workspace]
@@ -36,5 +36,11 @@ doc = false
 [[bin]]
 name = "partialunblind"
 path = "fuzz_targets/partialunblind.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "wasm_unblind_resp"
+path = "fuzz_targets/wasm_unblind_resp.rs"
 test = false
 doc = false

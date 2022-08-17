@@ -6,7 +6,7 @@ mod poprf;
 mod poprfscheme;
 use thiserror::Error;
 
-#[cfg(feature="fuzzer")]
+#[cfg(feature = "fuzzer")]
 pub mod fuzz;
 
 #[derive(Debug, Error)]
