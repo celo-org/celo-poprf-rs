@@ -1,6 +1,9 @@
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+#[cfg(all(feature = "fuzzer", feature = "wasm"))]
+pub mod fuzz;
+
 #[cfg(all(feature = "wasm", feature = "parallel"))]
 compile_error!("feature \"wasm\" and feature \"parrallel\" cannot be used together as WASM does not support threads.");
 

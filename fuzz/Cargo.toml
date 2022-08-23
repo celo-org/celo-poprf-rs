@@ -1,0 +1,46 @@
+[package]
+name = "poprf-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rand_chacha = { version = "0.3.1", default-features = false }
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.poprf]
+path = ".."
+features = ["fuzzer", "wasm"]
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "hashtofield"
+path = "fuzz_targets/hashtofield.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "poprfscheme"
+path = "fuzz_targets/poprfscheme.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "partialunblind"
+path = "fuzz_targets/partialunblind.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "wasm_unblind_resp"
+path = "fuzz_targets/wasm_unblind_resp.rs"
+test = false
+doc = false
